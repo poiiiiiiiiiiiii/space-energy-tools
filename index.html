@@ -1,0 +1,471 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>激光能量传输系统</title>
+    <script src="./chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            flex: 1;
+            min-width: 300px;
+        }
+        .panel-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .result-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .related-pages {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 20px;
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid #e0e7e5;
+        }
+        .related-pages a {
+            color: #0f766e;
+            line-height: 1.6;
+            text-underline-offset: 4px;
+            overflow-wrap: anywhere;
+        }
+        .related-pages a:hover { color: #094e49; }
+        .related-pages a:focus-visible { outline: 2px solid #0f766e; outline-offset: 4px; }
+        #chartContainer {
+            width: 480px;
+            height: 270px;
+            max-width: 480px;
+            max-height: 270px;
+            min-width: 480px;
+            min-height: 270px;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 发射端设置面板 -->
+        <div class="panel">
+            <div class="panel-title">发射端基础设置</div>
+            <div class="form-group">
+                <label for="wavelength">波长(nm)</label>
+                <input type="number" id="wavelength" value="808" min="0">
+            </div>
+            <div class="form-group">
+                <label for="power">功率(W)</label>
+                <input type="number" id="power" value="1000" min="0">
+            </div>
+            <div class="form-group">
+                <label for="beamDiameter">出射直径(m)</label>
+                <input type="number" id="beamDiameter" value="0.3" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label for="beamQuality">光束质量(mm·mrad)</label>
+                <input type="number" id="beamQuality" value="25" min="0" step="0.1">
+            </div>
+        </div>
+
+        <!-- 传输过程设置面板 -->
+        <div class="panel">
+            <div class="panel-title">传输过程基础设置</div>
+            <div class="form-group">
+                <label for="distance">传输距离(km)</label>
+                <input type="number" id="distance" value="25" min="0">
+            </div>
+            <div class="form-group">
+                <label for="dcacEfficiency">DC-AC效率(%)</label>
+                <input type="number" id="dcacEfficiency" value="90" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label for="d2lEfficiency">电-激光效率(%)</label>
+                <input type="number" id="d2lEfficiency" value="90" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label for="trackingLoss">跟瞄平台损耗(%)</label>
+                <input type="number" id="trackingLoss" value="10" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label for="l2lEfficiency">激光传输光-光效率(%)</label>
+                <input type="number" id="l2lEfficiency" value="100" min="0" max="100">
+            </div>
+        </div>
+
+        <!-- 接收端设置面板 -->
+        <div class="panel">
+            <div class="panel-title">接收端基础设置</div>
+            <div class="form-group">
+                <label for="receiverDiameter">接收端直径(m)</label>
+                <input type="number" id="receiverDiameter" value="5" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label for="pceEfficiency">光电效率(%)</label>
+                <input type="number" id="pceEfficiency" value="0" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label for="bandGap">带隙(Eg)</label>
+                <input type="number" id="bandGap" value="0" min="0.3" max="4.4" step="0.01">
+            </div>
+            <div class="button-row">
+                <button id="calculatePCE">计算光电效率</button>
+                <button id="calculateAll">计算全电路效率</button>
+            </div>
+            <div class="button-row">
+                <button id="orbitalTemp" style="background-color:#2ecc71">轨道温度模拟</button>
+                <button id="perovskiteRecycle" style="background-color:#f39c12;">钙钛矿模组回收</button>
+                <button id="medicalSim" style="background-color:#e74c3c;">医疗植入模拟</button>
+                <button id="openTandex" style="background-color:#8e44ad;">TandEx 计算器</button>
+                <button id="openSpaceEnergyLab" style="background-color:#16a085;">空间能量实验室</button>
+                <button id="openTCTLaser" style="background-color:#2563eb;">TCT 激光能量传输实验台</button>
+                <button id="openTCTAM0" style="background-color:#0f766e;">TCT AM0 光伏阵列实验台</button>
+            </div>
+            <nav class="related-pages" aria-label="JA 反照光模拟">
+                <a href="ja_solar_wing_albedo.html">JA 太阳翼整面在轨反照光</a>
+                <a href="ja_attitude_albedo_compare.html">JA 三种姿态反照光对比</a>
+            </nav>
+        </div>
+
+        <!-- 计算结果面板 -->
+        <div class="panel">
+            <div class="panel-title">计算结果</div>
+            <div class="form-group">
+                <label>激光发射电-光效率(%)</label>
+                <div class="result-value" id="d2lResult">0</div>
+            </div>
+            <div class="form-group">
+                <label>激光传输光-光效率(%)</label>
+                <div class="result-value" id="l2lResult">0</div>
+            </div>
+            <div class="form-group">
+                <label>激光接收光-电效率(%)</label>
+                <div class="result-value" id="l2dResult">0</div>
+            </div>
+            <div class="form-group">
+                <label>理论全电路效率(%)</label>
+                <div class="result-value" id="allPCE">0</div>
+            </div>
+            <div class="form-group">
+                <label>接收端光斑大小(m²)</label>
+                <div class="result-value" id="spotSize">0</div>
+            </div>
+            <div class="form-group">
+                <label>接收端面积大小(m²)</label>
+                <div class="result-value" id="receiverArea">0</div>
+            </div>
+            <div class="form-group">
+            <label>接收端光斑直径(m)</label>
+                <div class="result-value" id="spotDiameter">0</div>
+            </div>
+            <div class="form-group">
+                <label>实际效率计算结果(%)</label>
+                <div class="result-value" id="actualEfficiency">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="panel">
+        <div class="panel-title">到靶光斑预览图</div>
+    <canvas id="chartContainer" width="480" height="270" style="border:1px solid #ccc;display:block;margin:0 auto;"></canvas>
+        </div>
+    </div>
+
+    <script>        
+        // 计算光电效率
+        document.getElementById('calculatePCE').addEventListener('click', function() {
+    // 用唯一的窗口名，避免复用导致 opener 丢失
+    window.open('bec.html', 'solarPCE_' + Date.now(), 'width=1200,height=900');
+});
+
+        document.getElementById('openTandex').addEventListener('click', function() {
+            window.open('tandex.html', 'tandex_' + Date.now(), 'width=1200,height=900');
+        });
+
+        document.getElementById('openSpaceEnergyLab').addEventListener('click', function() {
+            window.location.href = 'space-energy-lab.html';
+        });
+
+        document.getElementById('openTCTLaser').addEventListener('click', function() {
+            window.location.href = 'tctdemo_laser.html';
+        });
+
+        document.getElementById('openTCTAM0').addEventListener('click', function() {
+            window.location.href = 'tctdemo_am0.html';
+        });
+
+        // 接收子窗口返回的效率
+        window.addEventListener('message', function(event) {
+            // 安全性校验
+            if (event.origin !== window.location.origin && event.origin !== "null") return;
+            //console.log(event);
+            if (event.data && event.data.type === 'solarPCE') {
+        // 设置效率
+        
+        document.getElementById('pceEfficiency').value = event.data.pce;
+            }
+        });
+
+        // 计算全电路效率
+        document.getElementById('calculateAll').addEventListener('click', function() {
+            // 获取输入参数
+            const dcacEfficiency = parseFloat(document.getElementById('dcacEfficiency').value) / 100;
+            const d2lEfficiency = parseFloat(document.getElementById('d2lEfficiency').value) / 100;
+            const trackingLoss = parseFloat(document.getElementById('trackingLoss').value) / 100;
+            const l2lEfficiency = parseFloat(document.getElementById('l2lEfficiency').value) / 100;
+            const pceEfficiency = parseFloat(document.getElementById('pceEfficiency').value) / 100;
+            
+            // 计算各阶段效率
+            const l2dEfficiency = dcacEfficiency * d2lEfficiency * (1 - trackingLoss) * 100;
+            const allPCE = l2dEfficiency / 100 * pceEfficiency * 100 * l2lEfficiency;
+            
+            // 计算光斑和接收面积
+            const receiverDiameter = parseFloat(document.getElementById('receiverDiameter').value);
+            const beamQuality = parseFloat(document.getElementById('beamQuality').value);
+            const beamDiameter = parseFloat(document.getElementById('beamDiameter').value);
+            const distance = parseFloat(document.getElementById('distance').value) * 1000;
+            
+            const beamQuality_m = beamQuality * 1e-6; // m·rad
+            const spotRadius = (beamQuality_m / beamDiameter) * distance;
+            const spotArea = Math.PI * spotRadius * spotRadius;
+            const receiverArea = Math.PI * Math.pow(receiverDiameter / 2, 2);
+            const spotDiameter = spotRadius * 2;
+            document.getElementById('spotDiameter').textContent = spotDiameter.toFixed(4);
+            
+            // 计算实际效率
+            let actualEfficiency;
+            if (receiverArea >= spotArea) {
+                actualEfficiency = allPCE;
+            } else {
+                actualEfficiency = allPCE / spotArea * receiverArea;
+            }
+            
+            // 更新结果
+            document.getElementById('d2lResult').textContent = l2dEfficiency.toFixed(2);
+            document.getElementById('l2lResult').textContent = (l2lEfficiency * 100).toFixed(2);
+            document.getElementById('l2dResult').textContent = (pceEfficiency * 100).toFixed(2);
+            document.getElementById('allPCE').textContent = allPCE.toFixed(2);
+            document.getElementById('spotSize').textContent = spotArea.toFixed(4);
+            document.getElementById('receiverArea').textContent = receiverArea.toFixed(4);
+            document.getElementById('actualEfficiency').textContent = actualEfficiency.toFixed(2);
+            
+            // 更新图表
+            updateBeamChart(receiverDiameter / 2, spotRadius);
+        });
+
+        function updateBeamChart(receiverRadius, spotRadius) {
+    const canvas = document.getElementById('chartContainer');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 坐标轴边距
+    const margin = 40;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // 计算缩放比例，使最大半径适合画布
+    const maxR = Math.max(receiverRadius, spotRadius);
+    const scale = (Math.min(width, height) / 2 - margin) / maxR;
+
+    // 坐标原点（中心）
+    const cx = width / 2;
+    const cy = height / 2;
+
+    // 绘制背景渐变
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+    bgGradient.addColorStop(0, '#f5faff');
+    bgGradient.addColorStop(1, '#e3e8f0');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, width, height);
+
+    // 不绘制任何坐标轴线
+
+    // 不绘制X/Y轴刻度和刻度标注
+
+    // 画接收器圆（无填充，仅边框和阴影）
+    ctx.save();
+    ctx.shadowColor = 'rgba(120,120,120,0.18)';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.arc(cx, cy, receiverRadius * scale, 0, 2 * Math.PI);
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#888';
+    ctx.stroke();
+    ctx.closePath();
+    ctx.restore();
+
+    // 画光斑圆（无填充，仅边框和阴影）
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,123,255,0.18)';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.arc(cx, cy, spotRadius * scale, 0, 2 * Math.PI);
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#007bff';
+    ctx.stroke();
+    ctx.closePath();
+    ctx.restore();
+
+    // 接收器直径标注
+    ctx.save();
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(cx - receiverRadius * scale, cy - 25);
+    ctx.lineTo(cx + receiverRadius * scale, cy - 25);
+    ctx.stroke();
+    ctx.closePath();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(cx - receiverRadius * scale, cy - 30);
+    ctx.lineTo(cx - receiverRadius * scale, cy - 20);
+    ctx.moveTo(cx + receiverRadius * scale, cy - 30);
+    ctx.lineTo(cx + receiverRadius * scale, cy - 20);
+    ctx.stroke();
+    ctx.closePath();
+    ctx.fillStyle = '#888';
+    ctx.font = '16px Segoe UI, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText((receiverRadius * 2).toFixed(2) + ' m', cx, cy - 38);
+    ctx.restore();
+
+    // 光斑直径标注
+    ctx.save();
+    ctx.strokeStyle = '#007bff';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(cx - spotRadius * scale, cy + 35);
+    ctx.lineTo(cx + spotRadius * scale, cy + 35);
+    ctx.stroke();
+    ctx.closePath();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(cx - spotRadius * scale, cy + 30);
+    ctx.lineTo(cx - spotRadius * scale, cy + 40);
+    ctx.moveTo(cx + spotRadius * scale, cy + 30);
+    ctx.lineTo(cx + spotRadius * scale, cy + 40);
+    ctx.stroke();
+    ctx.closePath();
+    ctx.fillStyle = '#007bff';
+    ctx.font = '16px Segoe UI, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText((spotRadius * 2).toFixed(2) + ' m', cx, cy + 54);
+    ctx.restore();
+
+    // 标注
+    ctx.save();
+    ctx.font = '18px Segoe UI, Arial';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.fillText('接收器', cx + receiverRadius * scale + 12, cy - 10);
+    ctx.fillStyle = '#007bff';
+    ctx.fillText('光斑', cx + spotRadius * scale + 12, cy + 24);
+    ctx.restore();
+
+    // 恢复textAlign
+    ctx.textAlign = 'start';
+}
+document.addEventListener('DOMContentLoaded', function() {
+    // 获取初始参数
+    const receiverDiameter = parseFloat(document.getElementById('receiverDiameter').value);
+    const beamQuality = parseFloat(document.getElementById('beamQuality').value);
+    const beamDiameter = parseFloat(document.getElementById('beamDiameter').value);
+    const distance = parseFloat(document.getElementById('distance').value) * 1000;
+    const beamQuality_m = beamQuality * 1e-6; // m·rad
+    const spotRadius = (beamQuality_m / beamDiameter) * distance;
+    updateBeamChart(receiverDiameter / 2, spotRadius);
+});
+// 轨道温度模拟按钮事件绑定（在主页面打开新窗口）
+document.getElementById('orbitalTemp').addEventListener('click', function() {
+    // 在当前窗口/标签跳转到轨道温度模拟页面（文件名或 URL 可根据需要替换）
+    window.location.href = 'tmp.html';
+});
+// 钙钛矿模组回收按钮事件绑定
+document.getElementById('perovskiteRecycle').addEventListener('click', function() {
+    // 跳转到钙钛矿模组回收页面（文件名可根据需要替换）
+    window.location.href = 'perovskite.html';
+});
+    // 医疗植入模拟按钮事件绑定
+    document.getElementById('medicalSim').addEventListener('click', function() {
+        window.location.href = 'medical.html';
+    });
+function refreshSpotPreview() {
+    const receiverDiameter = parseFloat(document.getElementById('receiverDiameter').value);
+    const beamQuality = parseFloat(document.getElementById('beamQuality').value);
+    const beamDiameter = parseFloat(document.getElementById('beamDiameter').value);
+    const distance = parseFloat(document.getElementById('distance').value) * 1000;
+    const beamQuality_m = beamQuality * 1e-6; // m·rad
+    const spotRadius = (beamQuality_m / beamDiameter) * distance;
+    updateBeamChart(receiverDiameter / 2, spotRadius);
+}
+
+['receiverDiameter', 'beamQuality', 'beamDiameter', 'distance'].forEach(id => {
+    document.getElementById(id).addEventListener('input', refreshSpotPreview);
+});
+    </script>
+    
+</body>
+</html>
+

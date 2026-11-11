@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>钙钛矿脉冲氙灯回收：LCOE与LCA综合评估模型</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { 
+            --primary: #0f4c81; 
+            --accent: #20bf6b; 
+            --danger: #eb4d4b; 
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-main: #2d3436;
+        }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text-main); padding: 20px; margin: 0; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.2fr; gap: 25px; }
+        
+        /* 通用卡片样式 */
+        .card { background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); margin-bottom: 20px;}
+        h2 { border-left: 5px solid var(--primary); padding-left: 15px; color: var(--primary); font-size: 1.4em; margin-top: 0; }
+        h3 { color: #636e72; font-size: 1.1em; margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 8px;}
+
+        /* 表格样式 */
+        table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        th, td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #f1f1f1; }
+        th { background-color: #f1f2f6; color: var(--text-main); font-weight: 600; }
+        input[type="number"] { width: 90%; padding: 6px; border: 1px solid #dfe6e9; border-radius: 4px; font-family: inherit; }
+        input[type="number"]:focus { border-color: var(--primary); outline: none; }
+
+        /* 输入网格 */
+        .input-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .input-group label { display: block; font-size: 0.85em; color: #636e72; margin-bottom: 5px; }
+        
+        /* 按钮 */
+        .btn-calc { background: var(--primary); color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background 0.3s; margin-top: 15px; font-weight: bold;}
+        .btn-calc:hover { background: #0c3b66; }
+
+        /* 结果展示区 */
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .kpi-box { background: #f1f2f6; padding: 15px; border-radius: 8px; text-align: center; }
+        .kpi-value { font-size: 1.6em; font-weight: bold; color: var(--primary); display: block; }
+        .kpi-label { font-size: 0.85em; color: #636e72; }
+        .highlight-green { color: var(--accent); }
+
+        /* LCOE 结果条 */
+        .lcoe-bar-container { display: flex; align-items: center; margin: 10px 0; }
+        .lcoe-value-box { flex: 1; padding: 10px; border-radius: 6px; margin: 0 5px; text-align: center; position: relative; }
+        .lcoe-orig { background: #ffeaa7; color: #d35400; }
+        .lcoe-new { background: #55efc4; color: #00b894; }
+        .arrow { font-size: 1.5em; color: #b2bec3; margin: 0 10px; }
+
+        /* 环境效益卡片 (模仿用户上传图片) */
+        .env-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .env-card { background: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 5px solid #2196f3; text-align: center; }
+        .env-card h4 { margin: 0; font-size: 2em; color: #2c3e50; }
+        .env-card p { margin: 5px 0 0; color: #7f8c8d; font-size: 0.9em; }
+
+        .radar-container { width: 80%; margin: 0 auto; }
+
+        @media (max-width: 1000px) { .container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="left-col">
+        <div class="card">
+            <h2>1. 模组与材料成本 (2024 Q4)</h2>
+            <p style="font-size:0.85em; color:#666;">数据来源：您提供的表格均价 (2024 Q4 Prices)。</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>组件名称</th>
+                        <th>成本 ($/m²)</th>
+                        <th>回收率 (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="materialTable">
+                    </tbody>
+            </table>
+            <div style="text-align:right; margin-top:10px; font-weight:bold;">
+                原始模组材料成本: <span id="totalVirginCost">$0.00</span> / m²
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>2. 脉冲氙灯工艺参数 (OpEx)</h2>
+            <div class="input-grid">
+                <div class="input-group">
+                    <label>单次脉冲能量 (J/pulse)</label>
+                    <input type="number" id="pulseEnergy" value="500">
+                </div>
+                <div class="input-group">
+                    <label>处理频率 (Hz)</label>
+                    <input type="number" id="frequency" value="3">
+                </div>
+                <div class="input-group">
+                    <label>每平米处理时间 (s/m²)</label>
+                    <input type="number" id="processTime" value="45">
+                </div>
+                <div class="input-group">
+                    <label>工业电费 ($/kWh)</label>
+                    <input type="number" id="elecCost" value="0.10">
+                </div>
+                <div class="input-group">
+                    <label>灯管更换成本 ($/套)</label>
+                    <input type="number" id="lampCost" value="500">
+                </div>
+                <div class="input-group">
+                    <label>灯管寿命 (次脉冲)</label>
+                    <input type="number" id="lampLife" value="1000000">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>3. 电站 LCOE 假设参数</h2>
+            <div class="input-grid">
+                <div class="input-group">
+                    <label>模组效率 Efficiency (%)</label>
+                    <input type="number" id="efficiency" value="22.0">
+                </div>
+                <div class="input-group">
+                    <label>BOS成本 (除了模组) ($/W)</label>
+                    <input type="number" id="bosCost" value="0.45">
+                </div>
+                <div class="input-group">
+                    <label>年有效利用小时数 (h)</label>
+                    <input type="number" id="sunHours" value="1300">
+                </div>
+                <div class="input-group">
+                    <label>系统寿命 (年)</label>
+                    <input type="number" id="lifetime" value="20">
+                </div>
+            </div>
+            <button class="btn-calc" id="calcButton" onclick="handleCalculateClick()">执行计算</button>
+            <div id="calcStatus" style="margin-top:10px; font-size:0.85em; color:#666; text-align:center;">当前结果已更新</div>
+        </div>
+    </div>
+
+    <div class="right-col">
+        <div class="card">
+            <h2>4. 经济性与 LCOE 分析结果</h2>
+            <p style="font-size:0.88em; color:#666; margin-top:-5px; margin-bottom:15px;">
+                净回收收益与工艺运营成本按面积计价 ($/m²)，LCOE 按发电量计价 ($/kWh)。两者单位不同，不能直接比较绝对数值。
+            </p>
+            
+            <div class="kpi-grid">
+                <div class="kpi-box">
+                    <span class="kpi-value highlight-green" id="netProfit">$0.00</span>
+                    <span class="kpi-label">每平米净回收收益 ($/m²)</span>
+                </div>
+                <div class="kpi-box">
+                    <span class="kpi-value" id="opexTotal">$0.00</span>
+                    <span class="kpi-label">工艺运营成本 ($/m²)</span>
+                </div>
+                <div class="kpi-box">
+                    <span class="kpi-value" id="moduleCostRed">0%</span>
+                    <span class="kpi-label">模组成本降低幅度</span>
+                </div>
+            </div>
+
+            <h3>平准化度电成本 (LCOE) 预测</h3>
+            <p style="font-size:0.9em; color:#666; margin-bottom:15px;">假设回收收益用于抵扣下一代模组的制造成本 (CapEx Reduction)。</p>
+            
+            <div class="lcoe-bar-container">
+                <div class="lcoe-value-box lcoe-orig">
+                    <div style="font-size:0.8em;">传统填埋 (Baseline)</div>
+                    <div style="font-size:1.4em; font-weight:bold;"><span id="lcoeBase">$0.00</span> /kWh</div>
+                    <div style="font-size:0.8em; opacity:0.8;"><span id="lcoeBaseCents">0.00</span> ¢/kWh</div>
+                </div>
+                <div class="arrow">➔</div>
+                <div class="lcoe-value-box lcoe-new">
+                    <div style="font-size:0.8em;">脉冲光回收 (Recycled)</div>
+                    <div style="font-size:1.4em; font-weight:bold;"><span id="lcoeRecycled">$0.00</span> /kWh</div>
+                    <div style="font-size:0.8em; opacity:0.8;"><span id="lcoeRecycledCents">0.00</span> ¢/kWh</div>
+                </div>
+            </div>
+            <div style="text-align:center; margin-top:5px; font-weight:bold; color:var(--accent);">
+                LCOE 降低: <span id="lcoeDelta">$0.00</span> /kWh (<span id="lcoePct">0%</span>)
+            </div>
+            <div style="text-align:center; font-size:0.85em; color:#666; margin-top:4px;">
+                折合 <span id="lcoeDeltaCents">0.00</span> ¢/kWh
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>5. 环境效益评估 (LCA)</h2>
+            <p style="font-size:0.88em; color:#666; margin-top:-5px; margin-bottom:15px;">
+                本图只随回收率与脉冲工艺能耗变化，不受 BOS 成本、年利用小时、系统寿命等第 3 部分经济参数影响。
+            </p>
+            <div class="env-grid">
+                <div class="env-card">
+                    <h4 id="resDepl">96.6%</h4>
+                    <p>资源消耗降低 (Resource Depletion)</p>
+                </div>
+                <div class="env-card">
+                    <h4 id="toxRed">68.8%</h4>
+                    <p>毒性影响降低 (Toxicity)</p>
+                </div>
+                <div class="env-card">
+                    <h4 id="co2Red">82.1 kg</h4>
+                    <p>碳排放减少 (每m²)</p>
+                </div>
+                <div class="env-card">
+                    <h4 id="epbt">2.3 mo</h4>
+                    <p>能量回收期 (Months)</p>
+                </div>
+            </div>
+
+            <h3>环境影响对比 (相对值)</h3>
+            <p id="lcaDrivers" style="font-size:0.85em; color:#666; margin-top:-8px; margin-bottom:12px; text-align:center;">
+                当前价值加权回收率: 0.0% | 工艺电耗: 0.000 kWh/m²
+            </p>
+            <div class="radar-container">
+                <canvas id="lcaChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. 初始化数据 (基于2024 Q4 价格表)
+    // 玻璃基板 3.2-3.8 -> 3.5
+    // ITO 1.45-1.65 -> 1.55
+    // 钙钛矿 1.2-1.5 -> 1.35
+    // SnO2 0.035-0.042 -> 0.0385
+    // NiOx 0.158-0.180 -> 0.169
+    // 封装(POE/EVA) 1.65-1.85 -> 1.75
+    // 金属电极 0.018-0.025 -> 0.0215
+    // 接线盒 8.2-9.5 -> 8.85
+    // 焊带 0.012-0.015 -> 0.0135
+    // *补充：背板玻璃 (假设同前盖板) -> 3.5 (表中只有"玻璃基板"，通常模组有两块玻璃或一玻一背板，这里按双玻保守估算，或者您可以手动修改)
+    
+    const initialData = [
+        { name: "接线盒 (Junction Box)", cost: 8.85, rate: 100 },
+        { name: "玻璃基板 (Front Glass)", cost: 3.50, rate: 100 },
+        { name: "背板玻璃 (Back Glass)", cost: 3.50, rate: 100 }, // 手动补充，因原表仅一项玻璃
+        { name: "封装胶膜 (POE/EVA)", cost: 1.75, rate: 98 },
+        { name: "ITO 靶材/层", cost: 1.55, rate: 95 },
+        { name: "钙钛矿层 (Perovskite)", cost: 1.35, rate: 90 },
+        { name: "空穴传输层 (NiOx)", cost: 0.169, rate: 100 },
+        { name: "电子传输层 (SnO2)", cost: 0.039, rate: 0 }, // 通常很难回收
+        { name: "金属电极 (Cu)", cost: 0.022, rate: 98 },
+        { name: "焊带 (Ribbon)", cost: 0.014, rate: 100 }
+    ];
+
+    // LCA 静态数据 (来自图片)
+    const lcaData = {
+        resourceDepletion: 96.6,
+        toxicityReduction: 68.8,
+        co2SavedPerM2: 82.1,
+        epbt: 2.3
+    };
+
+    let chartInstance = null;
+    let hasPendingChanges = false;
+
+    function getNumericValue(id, fallback = 0) {
+        const value = parseFloat(document.getElementById(id).value);
+        return Number.isFinite(value) ? value : fallback;
+    }
+
+    function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
+
+    function setPendingState(isPending) {
+        hasPendingChanges = isPending;
+        const status = document.getElementById('calcStatus');
+        const button = document.getElementById('calcButton');
+
+        if (!status || !button) {
+            return;
+        }
+
+        if (isPending) {
+            status.innerText = '参数已修改，点击“执行计算”更新结果';
+            status.style.color = 'var(--danger)';
+            button.style.background = 'var(--danger)';
+            button.innerText = '执行计算';
+        } else {
+            status.innerText = '当前结果已更新';
+            status.style.color = '#666';
+            button.style.background = 'var(--primary)';
+            button.innerText = '重新计算';
+        }
+    }
+
+    function bindInputEvents() {
+        document.querySelectorAll('input[type="number"]').forEach((input) => {
+            input.addEventListener('input', () => setPendingState(true));
+        });
+    }
+
+    function handleCalculateClick() {
+        calculateAll();
+    }
+
+    function init() {
+        renderTable();
+        initChart();
+        bindInputEvents();
+        calculateAll();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('materialTable');
+        tbody.innerHTML = '';
+        initialData.forEach((item, idx) => {
+            const row = `<tr>
+                <td>${item.name}</td>
+                <td>${item.cost.toFixed(3)}</td>
+                <td><input type="number" id="rate_${idx}" value="${item.rate}" style="width:60px;"></td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function calculateAll() {
+        // --- A. 成本计算 ---
+        let totalVirginCost = 0;
+        let totalRecoveredValue = 0;
+
+        initialData.forEach((item, idx) => {
+            const rate = clamp(getNumericValue(`rate_${idx}`, item.rate), 0, 100) / 100;
+            totalVirginCost += item.cost;
+            totalRecoveredValue += item.cost * rate;
+        });
+
+        document.getElementById('totalVirginCost').innerText = `$${totalVirginCost.toFixed(2)}`;
+
+        // --- B. OpEx 计算 (脉冲工艺) ---
+        const pulseJ = Math.max(0, getNumericValue('pulseEnergy', 500));
+        const freq = Math.max(0, getNumericValue('frequency', 3));
+        const time = Math.max(0, getNumericValue('processTime', 45));
+        const elecPrice = Math.max(0, getNumericValue('elecCost', 0.10));
+        const lampCost = Math.max(0, getNumericValue('lampCost', 500));
+        const lampLife = Math.max(getNumericValue('lampLife', 1000000), 1);
+
+        const totalPulses = freq * time; // pulses per m2
+        const totalEnergyKWh = (pulseJ * totalPulses) / 3600000;
+        const costElec = totalEnergyKWh * elecPrice;
+        const costLamp = (totalPulses / lampLife) * lampCost;
+        
+        const totalOpEx = costElec + costLamp;
+        const netProfit = totalRecoveredValue - totalOpEx;
+
+        document.getElementById('netProfit').innerText = `$${netProfit.toFixed(2)}`;
+        document.getElementById('opexTotal').innerText = `$${totalOpEx.toFixed(2)}`;
+        
+        const costRedPct = (netProfit / totalVirginCost) * 100;
+        document.getElementById('moduleCostRed').innerText = `${costRedPct.toFixed(1)}%`;
+
+        // --- C. LCOE 计算 ---
+        // 简单 LCOE 模型: (CapEx + Sum(O&M)) / LifetimeYield
+        // 假设 O&M 为 CapEx 的 1% 每瓦每年 (简化)
+        
+        const eff = Math.max(getNumericValue('efficiency', 22.0), 0.1) / 100;
+        const powerPerM2 = 1000 * eff; // Watts per m2 (Standard Test Conditions 1000W/m2)
+        const sunHours = Math.max(getNumericValue('sunHours', 1300), 1);
+        const life = Math.max(getNumericValue('lifetime', 20), 1);
+        const bosCostPerW = Math.max(getNumericValue('bosCost', 0.45), 0);
+
+        // 1. 基准情况 (Baseline)
+        const moduleCostBasePerW = totalVirginCost / powerPerM2;
+        const capexBasePerW = moduleCostBasePerW + bosCostPerW;
+        
+        // 2. 回收情况 (Recycled)
+        // 假设 Net Profit 直接减少了制造新模组的材料采购成本
+        const moduleCostRecycledPerW = Math.max(0, (totalVirginCost - netProfit) / powerPerM2); 
+        const capexRecycledPerW = moduleCostRecycledPerW + bosCostPerW;
+
+        // 计算 LCOE (简化版，不带折现率的平铺计算，或者带简单折现)
+        // LCOE = Capex / (Life * Yield) + O&M
+        // 这里使用更标准的带折现率公式 (Discount Rate r=5%)
+        const r = 0.05;
+        let totalEnergyDiscounted = 0;
+        for(let t=1; t<=life; t++) {
+            totalEnergyDiscounted += (powerPerM2 * sunHours / 1000) / Math.pow(1+r, t); // kWh
+        }
+        // 总 kWh / Wp
+        const yieldPerWpDiscounted = totalEnergyDiscounted / powerPerM2;
+
+        const lcoeBase = (capexBasePerW + (capexBasePerW * 0.01 * life)) / yieldPerWpDiscounted; // dollars per kWh
+        const lcoeRecycled = (capexRecycledPerW + (capexRecycledPerW * 0.01 * life)) / yieldPerWpDiscounted; // dollars per kWh
+
+        document.getElementById('lcoeBase').innerText = `$${lcoeBase.toFixed(4)}`;
+        document.getElementById('lcoeRecycled').innerText = `$${lcoeRecycled.toFixed(4)}`;
+        document.getElementById('lcoeDelta').innerText = `$${(lcoeBase - lcoeRecycled).toFixed(4)}`;
+        document.getElementById('lcoeBaseCents').innerText = (lcoeBase * 100).toFixed(2);
+        document.getElementById('lcoeRecycledCents').innerText = (lcoeRecycled * 100).toFixed(2);
+        document.getElementById('lcoeDeltaCents').innerText = ((lcoeBase - lcoeRecycled) * 100).toFixed(2);
+        const lcoeImprovementPct = lcoeBase > 0 ? ((lcoeBase - lcoeRecycled) / lcoeBase) * 100 : 0;
+
+        document.getElementById('lcoePct').innerText = lcoeImprovementPct.toFixed(1) + "%";
+
+        // --- D. LCA 显示更新 ---
+        const weightedRate = totalVirginCost > 0 ? totalRecoveredValue / totalVirginCost : 0;
+        const energyIntensity = totalEnergyKWh / Math.max(weightedRate, 0.05);
+        const energyPenalty = clamp(energyIntensity / 0.08, 0, 0.35);
+
+        const dynamicResourceReduction = clamp(lcaData.resourceDepletion * weightedRate * (1 - energyPenalty * 0.25), 0, 100);
+        const dynamicToxicityReduction = clamp(lcaData.toxicityReduction * weightedRate * (1 - energyPenalty * 0.4), 0, 100);
+        const dynamicCO2 = Math.max(0, lcaData.co2SavedPerM2 * weightedRate - totalEnergyKWh * 0.55);
+        const dynamicEpbt = lcaData.epbt * (1 + energyPenalty) / Math.max(weightedRate, 0.15);
+
+        document.getElementById('resDepl').innerText = `${dynamicResourceReduction.toFixed(1)}%`;
+        document.getElementById('toxRed').innerText = `${dynamicToxicityReduction.toFixed(1)}%`;
+        document.getElementById('co2Red').innerText = `${dynamicCO2.toFixed(1)} kg`;
+        document.getElementById('epbt').innerText = `${dynamicEpbt.toFixed(1)} mo`;
+        document.getElementById('lcaDrivers').innerText = `当前价值加权回收率: ${(weightedRate * 100).toFixed(1)}% | 工艺电耗: ${totalEnergyKWh.toFixed(3)} kWh/m²`;
+        
+        // 更新图表数据
+        updateChart({
+            resourceReduction: dynamicResourceReduction,
+            toxicityReduction: dynamicToxicityReduction,
+            co2Reduction: clamp((dynamicCO2 / lcaData.co2SavedPerM2) * 100, 0, 100),
+            waterReduction: clamp(78 * weightedRate * (1 - energyPenalty * 0.3), 0, 100),
+            ecoReduction: clamp(85 * weightedRate * (1 - energyPenalty * 0.35), 0, 100)
+        });
+
+        setPendingState(false);
+    }
+
+    function initChart() {
+        const ctx = document.getElementById('lcaChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['资源消耗', '人类毒性', '碳排放', '水耗', '生态毒性'],
+                datasets: [{
+                    label: '填埋处理 (Baseline)',
+                    data: [100, 100, 100, 100, 100],
+                    fill: true,
+                    backgroundColor: 'rgba(235, 77, 75, 0.2)',
+                    borderColor: 'rgba(235, 77, 75, 1)',
+                    pointBackgroundColor: 'rgba(235, 77, 75, 1)',
+                    borderWidth: 2
+                }, {
+                    label: '脉冲氙灯回收 (IPL)',
+                    data: [3.4, 31.2, 17.9, 10, 15], // 这里的数值 = 100 - 降低比例 (例如资源消耗降低96.6% -> 剩余3.4%)
+                    fill: true,
+                    backgroundColor: 'rgba(32, 191, 107, 0.3)',
+                    borderColor: 'rgba(32, 191, 107, 1)',
+                    pointBackgroundColor: 'rgba(32, 191, 107, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                elements: { line: { tension: 0.1 } },
+                scales: {
+                    r: {
+                        angleLines: { display: true },
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        ticks: { backdropColor: 'transparent', stepSize: 20 } 
+                    }
+                },
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+
+    function updateChart(metrics) {
+        if(chartInstance) {
+            chartInstance.data.datasets[1].data = [
+                100 - metrics.resourceReduction,
+                100 - metrics.toxicityReduction,
+                100 - metrics.co2Reduction,
+                100 - metrics.waterReduction,
+                100 - metrics.ecoReduction
+            ];
+            chartInstance.update();
+        }
+    }
+
+    // 页面加载完毕执行
+    init();
+
+</script>
+</body>
+</html>

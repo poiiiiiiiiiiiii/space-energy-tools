@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医疗植入设备激光无线充电模拟</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(to right, #2c3e50, #4ca1af);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            border-bottom: 5px solid #3498db;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+        }
+        
+        .input-section {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-right: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .output-section {
+            flex: 2;
+            min-width: 300px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+        }
+        
+        .btn {
+            background: linear-gradient(to right, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: block;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(to right, #2980b9, #2573a7);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-reset {
+            background: linear-gradient(to right, #e74c3c, #c0392b);
+        }
+        
+        .btn-reset:hover {
+            background: linear-gradient(to right, #c0392b, #a93226);
+        }
+        
+        .result-card {
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .result-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .result-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #e74c3c;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin-top: 20px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .warning {
+            background-color: #ffecb3;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-title {
+            font-weight: 700;
+            color: #e65100;
+            margin-bottom: 8px;
+        }
+        
+        .skin-type-description {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .tab-container {
+            margin-top: 20px;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            background-color: #f1f1f1;
+            margin-right: 5px;
+        }
+        
+        .tab.active {
+            background-color: #e3f2fd;
+            border-color: #ddd;
+            border-bottom: 1px solid #e3f2fd;
+            margin-bottom: -1px;
+            font-weight: 600;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .battery-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .battery-card {
+            flex: 1;
+            min-width: 150px;
+            background-color: #e8f5e9;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .battery-capacity {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #2e7d32;
+        }
+        
+        .damage-level {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .damage-none {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .damage-mild {
+            background-color: #fff8e1;
+            color: #f57f17;
+        }
+        
+        .damage-moderate {
+            background-color: #ffecb3;
+            color: #e65100;
+        }
+        
+        .damage-severe {
+            background-color: #ffcdd2;
+            color: #c62828;
+        }
+        
+        .damage-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .damage-table th, .damage-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .damage-table th {
+            background-color: #f5f5f5;
+        }
+        
+        .absorption-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .absorption-card {
+            flex: 1;
+            min-width: 150px;
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .absorption-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1976d2;
+        }
+        
+        .temp-threshold-card {
+            background-color: #fff8e1;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .size-comparison-container {
+            height: 200px;
+            position: relative;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .size-comparison-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .size-legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        .steady-state-explanation {
+            background-color: #f5f5f5;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .steady-state-title {
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .equation {
+            font-family: monospace;
+            background-color: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .input-group-item {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .input-section {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>医疗植入设备激光无线充电模拟</h1>
+            <p class="subtitle">精确散射与反射特性模型</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="input-section">
+                <h2 class="section-title">激光参数设置</h2>
+                
+                <div class="form-group">
+                    <label for="wavelength">激光波长 (nm)</label>
+                    <input type="number" id="wavelength" min="200" max="1100" step="1" value="808">
+                    <div class="skin-type-description">常用波长: 630nm(红光), 808nm(近红外), 980nm(近红外)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="spotSize">匀化光斑边长 (cm)</label>
+                    <input type="number" id="spotSize" min="0.1" step="0.1" value="5.0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="inputPower">激光输入功率 (mW)</label>
+                    <input type="number" id="inputPower" min="1" step="1" value="500">
+                </div>
+                
+                <div class="form-group">
+                    <label for="irradiationTime">激光辐照时间 (秒)</label>
+                    <input type="number" id="irradiationTime" min="1" step="1" value="300">
+                </div>
+                
+                <div class="form-group">
+                    <label for="deviceVoltage">医疗植入设备工作电压 (V)</label>
+                    <input type="number" id="deviceVoltage" min="0.1" step="0.1" value="3.7">
+                </div>
+                
+                <div class="form-group">
+                    <label for="lpcSize">LPC接收器边长 (cm)</label>
+                    <input type="number" id="lpcSize" min="0.1" step="0.1" value="2.5">
+                    <div class="skin-type-description">LPC: Laser Power Converter</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="lpcEfficiency">LPC光电转换效率 (%)</label>
+                    <input type="number" id="lpcEfficiency" min="0" max="100" step="1" value="50">
+                </div>
+                
+                <h2 class="section-title">皮肤参数设置</h2>
+                
+                <div class="form-group">
+                    <label for="skinType">皮肤类型 (Fitzpatrick Scale)</label>
+                    <select id="skinType">
+                        <option value="1">类型 I - 非常白皙（凯尔特人）</option>
+                        <option value="2">类型 II - 白皙（欧洲人）</option>
+                        <option value="3" selected>类型 III - 中等（地中海人）</option>
+                        <option value="4">类型 IV - 橄榄色（亚洲人/拉丁人）</option>
+                        <option value="5">类型 V - 棕色（中东/印度人）</option>
+                        <option value="6">类型 VI - 深棕色（非洲人）</option>
+                    </select>
+                    <div class="skin-type-description" id="skinTypeDesc">中等肤色，有时晒伤，有时晒黑</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="skinThickness">皮肤厚度 (mm)</label>
+                    <input type="number" id="skinThickness" min="0.1" step="0.1" value="4.0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="hemoglobinConcentration">血红蛋白浓度 (g/L)</label>
+                    <input type="number" id="hemoglobinConcentration" min="1" step="1" value="120">
+                </div>
+                
+                <div class="form-group">
+                    <label for="collagenDensity">胶原蛋白密度 (g/cm³)</label>
+                    <input type="number" id="collagenDensity" min="0.01" step="0.01" value="0.15">
+                    <div class="skin-type-description">影响散射特性</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="batteryCapacity">医疗设备电池容量 (mAh)</label>
+                    <input type="number" id="batteryCapacity" min="100" step="100" value="1000">
+                </div>
+                
+                <button class="btn" id="calculateBtn">计算分析</button>
+                <button class="btn btn-reset" id="resetBtn">重置参数</button>
+            </div>
+            
+            <div class="output-section">
+                <h2 class="section-title">分析结果</h2>
+                
+                <div class="tab-container">
+                    <div class="tabs">
+                        <div class="tab active" data-tab="summary">概览</div>
+                        <div class="tab" data-tab="temperature">温度分析</div>
+                        <div class="tab" data-tab="charging">充电分析</div>
+                        <div class="tab" data-tab="safety">安全分析</div>
+                        <div class="tab" data-tab="absorption">吸收特性</div>
+                    </div>
+                    
+                    <div class="tab-content active" id="summaryTab">
+                        <div class="result-card">
+                            <div class="result-title">匀化光斑面积</div>
+                            <div class="result-value" id="spotAreaResult">25.00 cm²</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">LPC接收器面积</div>
+                            <div class="result-value" id="lpcAreaResult">6.25 cm²</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">输入激光功率密度</div>
+                            <div class="result-value" id="powerDensityResult">20.00 mW/cm²</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">皮肤反射率</div>
+                            <div class="result-value" id="reflectanceResult">12.34%</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">皮肤穿透率</div>
+                            <div class="result-value" id="transmissionRateResult">36.79%</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">皮肤吸收率</div>
+                            <div class="result-value" id="absorptionRateResult">50.87%</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">穿透后剩余功率</div>
+                            <div class="result-value" id="transmittedPowerResult">183.94 mW</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">皮肤吸收功率</div>
+                            <div class="result-value" id="absorbedPowerResult">254.33 mW</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">未被LPC接收功率</div>
+                            <div class="result-value" id="unreceivedPowerResult">92.74 mW</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">LPC未转换功率</div>
+                            <div class="result-value" id="unconvertedPowerResult">45.60 mW</div>
+                        </div>
+                        
+                        <div class="warning" id="safetyWarning" style="display: none;">
+                            <div class="warning-title">安全警告</div>
+                            <p>最高温度超过安全阈值！建议降低输入功率或缩短辐照时间。</p>
+                        </div>
+                        
+                        <h3 class="section-title">匀化光斑与LPC接收器大小比较</h3>
+                        <div class="size-comparison-container">
+                            <canvas id="sizeComparisonCanvas" class="size-comparison-canvas"></canvas>
+                        </div>
+                        
+                        <div class="size-legend">
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: rgba(255, 99, 132, 0.7);"></div>
+                                <span>匀化光斑</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: rgba(54, 162, 235, 0.7);"></div>
+                                <span>LPC接收器</span>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <canvas id="summaryChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="temperatureTab">
+                        <div class="result-card">
+                            <div class="result-title">表皮最高温度</div>
+                            <div class="result-value" id="epidermisMaxTemp">39.8°C</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">表皮温度升高</div>
+                            <div class="result-value" id="epidermisTempRise">2.8°C</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">皮下组织最高温度</div>
+                            <div class="result-value" id="subcutaneousMaxTemp">38.5°C</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">皮下组织温度升高</div>
+                            <div class="result-value" id="subcutaneousTempRise">1.5°C</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">散射热量贡献</div>
+                            <div class="result-value" id="scatteringHeatContribution">25.0%</div>
+                        </div>
+                        
+                        <div class="warning" id="tempWarning" style="display: none;">
+                            <div class="warning-title">温度警告</div>
+                            <p>最高温度接近安全阈值，建议缩短辐照时间或增加冷却措施。</p>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <canvas id="tempChart"></canvas>
+                        </div>
+                        
+                        <div class="steady-state-explanation">
+                            <div class="steady-state-title">温度稳态方程解释</div>
+                            <p>在辐照一段时间后，组织温度会达到稳态，此时吸收的热量与散热量达到平衡：</p>
+                            <div class="equation">
+                                P<sub>absorbed</sub> = h × A × (T - T<sub>0</sub>)
+                            </div>
+                            <p>其中：</p>
+                            <ul>
+                                <li>P<sub>absorbed</sub>：组织吸收的激光功率 (W)</li>
+                                <li>h：热传导系数 (W/m²·K)</li>
+                                <li>A：组织表面积 (m²)</li>
+                                <li>T：组织温度 (K)</li>
+                                <li>T<sub>0</sub>：环境温度 (K)</li>
+                            </ul>
+                            <p>当吸收功率等于散热功率时，温度不再升高，达到稳态。</p>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="chargingTab">
+                        <div class="result-card">
+                            <div class="result-title">LPC接收功率</div>
+                            <div class="result-value" id="lpcReceivedPower">91.20 mW</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">LPC输出功率</div>
+                            <div class="result-value" id="lpcOutputPower">45.60 mW</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">总发电量</div>
+                            <div class="result-value" id="totalEnergy">13680.00 mJ</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">等效充电量</div>
+                            <div class="result-value" id="equivalentCharge">1.03 mAh</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">充电百分比</div>
+                            <div class="result-value" id="chargePercentage">0.10%</div>
+                        </div>
+                        
+                        <h3 class="section-title">医疗设备充电效果预估</h3>
+                        <div class="battery-info" id="batteryInfo">
+                            <!-- 电池充电效果将动态生成 -->
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="safetyTab">
+                        <div class="temp-threshold-card">
+                            <div class="result-title">皮肤类型温度安全阈值</div>
+                            <div class="result-value" id="tempThresholdResult">41.0°C</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">表皮最高温度</div>
+                            <div class="result-value" id="epidermisMaxTempSafety">39.8°C</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">皮下组织最高温度</div>
+                            <div class="result-value" id="subcutaneousMaxTempSafety">38.5°C</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">表皮损伤评估</div>
+                            <div class="result-value" id="epidermisDamageLevel">轻度损伤</div>
+                            <div class="damage-level damage-mild" id="epidermisDamageVisual">轻度损伤</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">皮下组织损伤评估</div>
+                            <div class="result-value" id="subcutaneousDamageLevel">无损伤</div>
+                            <div class="damage-level damage-none" id="subcutaneousDamageVisual">无损伤</div>
+                        </div>
+                        
+                        <div class="warning" id="safetyAdvice" style="display: none;">
+                            <div class="warning-title">安全建议</div>
+                            <p id="safetyRecommendation"></p>
+                        </div>
+                        
+                        <h3 class="section-title">不同皮肤类型温度耐受性</h3>
+                        <table class="damage-table">
+                            <thead>
+                                <tr>
+                                    <th>皮肤类型</th>
+                                    <th>表皮安全阈值</th>
+                                    <th>皮下组织安全阈值</th>
+                                    <th>耐受性描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>I - 非常白皙</td>
+                                    <td>40.0°C</td>
+                                    <td>39.5°C</td>
+                                    <td>最低耐受性，易受热损伤</td>
+                                </tr>
+                                <tr>
+                                    <td>II - 白皙</td>
+                                    <td>40.5°C</td>
+                                    <td>40.0°C</td>
+                                    <td>低耐受性，需谨慎控制温度</td>
+                                </tr>
+                                <tr>
+                                    <td>III - 中等</td>
+                                    <td>41.0°C</td>
+                                    <td>40.5°C</td>
+                                    <td>中等耐受性，标准安全措施</td>
+                                </tr>
+                                <tr>
+                                    <td>IV - 橄榄色</td>
+                                    <td>41.5°C</td>
+                                    <td>41.0°C</td>
+                                    <td>中高耐受性，相对安全</td>
+                                </tr>
+                                <tr>
+                                    <td>V - 棕色</td>
+                                    <td>42.0°C</td>
+                                    <td>41.5°C</td>
+                                    <td>高耐受性，安全范围较宽</td>
+                                </tr>
+                                <tr>
+                                    <td>VI - 深棕色</td>
+                                    <td>42.5°C</td>
+                                    <td>42.0°C</td>
+                                    <td>最高耐受性，热损伤风险最低</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="chart-container">
+                            <canvas id="safetyChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="absorptionTab">
+                        <div class="result-card">
+                            <div class="result-title">当前波长吸收特性</div>
+                            <div class="result-value" id="wavelengthResult">808 nm</div>
+                        </div>
+                        
+                        <div class="absorption-info">
+                            <div class="absorption-card">
+                                <div>黑色素吸收系数</div>
+                                <div class="absorption-value" id="melaninAbsorption">0.15</div>
+                            </div>
+                            <div class="absorption-card">
+                                <div>血红蛋白吸收系数</div>
+                                <div class="absorption-value" id="hemoglobinAbsorption">0.12</div>
+                            </div>
+                            <div class="absorption-card">
+                                <div>水吸收系数</div>
+                                <div class="absorption-value" id="waterAbsorption">0.05</div>
+                            </div>
+                            <div class="absorption-card">
+                                <div>散射系数</div>
+                                <div class="absorption-value" id="scatteringCoefficient">0.25</div>
+                            </div>
+                            <div class="absorption-card">
+                                <div>总衰减系数</div>
+                                <div class="absorption-value" id="totalAttenuation">0.57</div>
+                            </div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">光学窗口效应</div>
+                            <p>在600-1300nm波长范围内存在"光学窗口"，黑色素和水吸收较低，穿透深度最大。</p>
+                            <p>最佳波长范围：800-900nm（近红外）</p>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <canvas id="absorptionChart"></canvas>
+                        </div>
+                        
+                        <h3 class="section-title">波长选择建议</h3>
+                        <table class="damage-table">
+                            <thead>
+                                <tr>
+                                    <th>波长</th>
+                                    <th>类型</th>
+                                    <th>穿透深度</th>
+                                    <th>适用场景</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>630nm</td>
+                                    <td>红光</td>
+                                    <td>中等</td>
+                                    <td>浅色皮肤患者</td>
+                                </tr>
+                                <tr>
+                                    <td>808nm</td>
+                                    <td>近红外</td>
+                                    <td>最大</td>
+                                    <td>通用最佳选择</td>
+                                </tr>
+                                <tr>
+                                    <td>980nm</td>
+                                    <td>近红外</td>
+                                    <td>大</td>
+                                    <td>深色皮肤患者</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 皮肤类型温度安全阈值
+        const skinTempThresholds = {
+            1: { epidermis: 40.0, subcutaneous: 39.5 }, // 非常白皙皮肤
+            2: { epidermis: 40.5, subcutaneous: 40.0 },
+            3: { epidermis: 41.0, subcutaneous: 40.5 },
+            4: { epidermis: 41.5, subcutaneous: 41.0 },
+            5: { epidermis: 42.0, subcutaneous: 41.5 },
+            6: { epidermis: 42.5, subcutaneous: 42.0 }  // 深色皮肤
+        };
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化皮肤类型描述
+            updateSkinTypeDescription();
+            
+            // 皮肤类型选择事件
+            document.getElementById('skinType').addEventListener('change', updateSkinTypeDescription);
+            
+            // 标签切换事件
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // 移除所有active类
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    // 添加active类到当前标签和内容
+                    this.classList.add('active');
+                    const tabId = this.getAttribute('data-tab') + 'Tab';
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // 计算按钮事件
+            document.getElementById('calculateBtn').addEventListener('click', calculateAnalysis);
+            
+            // 重置按钮事件
+            document.getElementById('resetBtn').addEventListener('click', resetForm);
+            
+            // 初始化图表
+            initCharts();
+        });
+        
+        // 更新皮肤类型描述
+        function updateSkinTypeDescription() {
+            const skinType = document.getElementById('skinType');
+            const descriptions = {
+                '1': '非常白皙（凯尔特人） - 总是晒伤，从不晒黑',
+                '2': '白皙（欧洲人） - 经常晒伤，很少晒黑',
+                '3': '中等（地中海人） - 有时晒伤，有时晒黑',
+                '4': '橄榄色（亚洲人/拉丁人） - 很少晒伤，经常晒黑',
+                '5': '棕色（中东/印度人） - 很少晒伤，容易晒黑',
+                '6': '深棕色（非洲人） - 从不晒伤，深度晒黑'
+            };
+            document.getElementById('skinTypeDesc').textContent = descriptions[skinType.value];
+        }
+        
+        // 计算黑色素吸收系数（基于波长）
+        function calculateMelaninAbsorption(wavelength) {
+            // 黑色素在短波长吸收强，长波长吸收弱
+            return 1.5 * Math.exp(-0.005 * (wavelength - 600));
+        }
+        
+        // 计算血红蛋白吸收系数（基于波长）
+        function calculateHemoglobinAbsorption(wavelength, concentration) {
+            // 血红蛋白在540nm和580nm附近有吸收峰
+            const peak1 = 540; // 第一个吸收峰
+            const peak2 = 580; // 第二个吸收峰
+            
+            const absorption1 = 0.8 * Math.exp(-Math.pow((wavelength - peak1)/50, 2));
+            const absorption2 = 1.0 * Math.exp(-Math.pow((wavelength - peak2)/50, 2));
+            
+            // 基础吸收系数（120g/L浓度下）
+            const baseAbsorption = absorption1 + absorption2;
+            
+            // 根据实际浓度调整
+            return baseAbsorption * (concentration / 120);
+        }
+        
+        // 计算水吸收系数（基于波长）
+        function calculateWaterAbsorption(wavelength) {
+            // 水在980nm附近有吸收峰
+            const peak1 = 980; // 第一个吸收峰
+            const peak2 = 1200; // 第二个吸收峰
+            
+            const absorption1 = 0.8 * Math.exp(-Math.pow((wavelength - peak1)/50, 2));
+            const absorption2 = 1.2 * Math.exp(-Math.pow((wavelength - peak2)/100, 2));
+            
+            return absorption1 + absorption2;
+        }
+        
+        // 计算散射系数（基于波长）
+        function calculateScatteringCoefficient(wavelength, skinType, collagenDensity) {
+            // 散射系数在短波长较高，长波长较低
+            const baseScattering = 100 * Math.pow(700 / wavelength, 1.2);
+            
+            // 皮肤类型因子（深色皮肤散射更强）
+            const skinFactors = {
+                1: 0.8, // 非常白皙皮肤
+                2: 0.9,
+                3: 1.0,
+                4: 1.1,
+                5: 1.2,
+                6: 1.3  // 深色皮肤
+            };
+            
+            // 胶原蛋白密度影响
+            const collagenFactor = collagenDensity / 0.15;
+            
+            return baseScattering * skinFactors[skinType] * collagenFactor;
+        }
+        
+        // 计算反射率（基于波长）
+        function calculateReflectance(wavelength, skinType) {
+            // 基础反射率（浅色皮肤反射率较高）
+            const baseReflectance = {
+                1: 0.55, // 非常白皙皮肤
+                2: 0.45,
+                3: 0.35,
+                4: 0.25,
+                5: 0.15,
+                6: 0.05  // 深色皮肤
+            };
+            
+            // 波长影响（近红外区域反射率较低）
+            const wavelengthFactor = 1 - (wavelength - 600) * 0.00025;
+            
+            return baseReflectance[skinType] * wavelengthFactor;
+        }
+        
+        // 初始化图表
+        function initCharts() {
+            // 概览图表
+            const summaryCtx = document.getElementById('summaryChart').getContext('2d');
+            window.summaryChart = new Chart(summaryCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['输入功率', '穿透后功率', 'LPC输出'],
+                    datasets: [{
+                        label: '功率 (mW)',
+                        data: [500, 183.94, 45.60],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(75, 192, 192, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(75, 192, 192, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '功率 (mW)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 温度图表
+            const tempCtx = document.getElementById('tempChart').getContext('2d');
+            const timeLabels = Array.from({length: 61}, (_, i) => i);
+            const epidermisTempData = Array.from({length: 61}, (_, i) => {
+                return 37 + 3 * (1 - Math.exp(-0.05 * i));
+            });
+            const subcutaneousTempData = Array.from({length: 61}, (_, i) => {
+                return 37 + 1.5 * (1 - Math.exp(-0.05 * i));
+            });
+            
+            window.tempChart = new Chart(tempCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: '表皮温度 (°C)',
+                            data: epidermisTempData,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: '皮下组织温度 (°C)',
+                            data: subcutaneousTempData,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            min: 36,
+                            max: 42,
+                            title: {
+                                display: true,
+                                text: '温度 (°C)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '时间 (秒)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}°C`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 安全图表
+            const safetyCtx = document.getElementById('safetyChart').getContext('2d');
+            window.safetyChart = new Chart(safetyCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['功率密度', '温度升高', '穿透率', '发电效率', '安全余量'],
+                    datasets: [{
+                        label: '当前值',
+                        data: [85, 75, 65, 55, 45],
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
+                    }, {
+                        label: '安全阈值',
+                        data: [60, 60, 60, 60, 60],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(255, 99, 132, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: {
+                                display: true
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+            
+            // 吸收特性图表
+            const absorptionCtx = document.getElementById('absorptionChart').getContext('2d');
+            const wavelengths = Array.from({length: 901}, (_, i) => i + 200);
+            const melaninData = wavelengths.map(w => calculateMelaninAbsorption(w));
+            const hemoglobinData = wavelengths.map(w => calculateHemoglobinAbsorption(w, 120));
+            const waterData = wavelengths.map(w => calculateWaterAbsorption(w));
+            const scatteringData = wavelengths.map(w => calculateScatteringCoefficient(w, 3, 0.15));
+            const totalData = wavelengths.map((w, i) => melaninData[i] + hemoglobinData[i] + waterData[i] + scatteringData[i]);
+            
+            window.absorptionChart = new Chart(absorptionCtx, {
+                type: 'line',
+                data: {
+                    labels: wavelengths,
+                    datasets: [
+                        {
+                            label: '黑色素吸收',
+                            data: melaninData,
+                            borderColor: 'rgba(121, 85, 72, 1)',
+                            backgroundColor: 'rgba(121, 85, 72, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: '血红蛋白吸收',
+                            data: hemoglobinData,
+                            borderColor: 'rgba(198, 40, 40, 1)',
+                            backgroundColor: 'rgba(198, 40, 40, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: '水吸收',
+                            data: waterData,
+                            borderColor: 'rgba(33, 150, 243, 1)',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: '散射系数',
+                            data: scatteringData,
+                            borderColor: 'rgba(255, 193, 7, 1)',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: '总衰减系数',
+                            data: totalData,
+                            borderColor: 'rgba(244, 67, 54, 1)',
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: '吸收/散射系数'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '波长 (nm)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        annotation: {
+                            annotations: {
+                                opticalWindow: {
+                                    type: 'box',
+                                    xMin: 600,
+                                    xMax: 1300,
+                                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                                    borderColor: 'rgba(76, 175, 80, 0.5)',
+                                    borderWidth: 1,
+                                    label: {
+                                        display: true,
+                                        content: '光学窗口',
+                                        position: 'start'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 绘制大小比较图
+        function drawSizeComparison(spotSize, lpcSize) {
+            const canvas = document.getElementById('sizeComparisonCanvas');
+            const ctx = canvas.getContext('2d');
+            const container = canvas.parentElement;
+            
+            // 设置Canvas尺寸
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            // 清除画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 计算缩放比例
+            const maxSize = Math.max(spotSize, lpcSize);
+            const scale = Math.min(canvas.width, canvas.height) * 0.8 / maxSize;
+            
+            // 计算中心位置
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // 绘制匀化光斑（正方形）
+            const spotHalfSize = spotSize * scale / 2;
+            ctx.fillStyle = 'rgba(255, 99, 132, 0.7)';
+            ctx.fillRect(centerX - spotHalfSize, centerY - spotHalfSize, spotSize * scale, spotSize * scale);
+            
+            // 绘制LPC接收器（正方形）
+            const lpcHalfSize = lpcSize * scale / 2;
+            ctx.fillStyle = 'rgba(54, 162, 235, 0.7)';
+            ctx.fillRect(centerX - lpcHalfSize, centerY - lpcHalfSize, lpcSize * scale, lpcSize * scale);
+            
+            // 添加标签
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('匀化光斑', centerX, centerY - spotHalfSize - 10);
+            ctx.fillText('LPC接收器', centerX, centerY);
+        }
+        
+        // 生成电池充电效果预估
+        function generateBatteryCharging(equivalentCharge, batteryCapacity) {
+            const batteryInfo = document.getElementById('batteryInfo');
+            batteryInfo.innerHTML = '';
+            
+            // 计算充电百分比
+            let chargePercentage = (equivalentCharge / batteryCapacity) * 100;
+            if (chargePercentage > 100) chargePercentage = 100;
+            
+            // 创建电池信息卡片
+            const batteryCard = document.createElement('div');
+            batteryCard.className = 'battery-card';
+            
+            batteryCard.innerHTML = `
+                <div>${batteryCapacity}mAh电池</div>
+                <div class="battery-capacity">${chargePercentage.toFixed(2)}%</div>
+                <div>充电量: ${equivalentCharge.toFixed(2)}mAh</div>
+            `;
+            
+            batteryInfo.appendChild(batteryCard);
+        }
+        
+        // 计算皮肤损伤程度
+        function calculateDamageLevel(maxTemp, tempThreshold) {
+            // 计算温度超过阈值的程度
+            const tempExcess = maxTemp - tempThreshold;
+            
+            // 评估损伤程度
+            if (tempExcess < 0) {
+                return {text: "无损伤", class: "damage-none"};
+            } else if (tempExcess < 0.5) {
+                return {text: "轻度损伤", class: "damage-mild"};
+            } else if (tempExcess < 1.0) {
+                return {text: "中度损伤", class: "damage-moderate"};
+            } else {
+                return {text: "重度损伤", class: "damage-severe"};
+            }
+        }
+        
+        // 计算分析
+        function calculateAnalysis() {
+            // 获取输入值
+            const wavelength = parseFloat(document.getElementById('wavelength').value);
+            const spotSize = parseFloat(document.getElementById('spotSize').value);
+            const inputPower = parseFloat(document.getElementById('inputPower').value);
+            const irradiationTime = parseFloat(document.getElementById('irradiationTime').value);
+            const deviceVoltage = parseFloat(document.getElementById('deviceVoltage').value);
+            const lpcSize = parseFloat(document.getElementById('lpcSize').value);
+            const lpcEfficiency = parseFloat(document.getElementById('lpcEfficiency').value) / 100;
+            const skinType = parseInt(document.getElementById('skinType').value);
+            const skinThickness = parseFloat(document.getElementById('skinThickness').value) / 1000; // mm to m
+            const hemoglobinConcentration = parseFloat(document.getElementById('hemoglobinConcentration').value);
+            const collagenDensity = parseFloat(document.getElementById('collagenDensity').value);
+            const batteryCapacity = parseFloat(document.getElementById('batteryCapacity').value);
+            
+            // 计算光斑面积 (cm²)
+            const spotArea = spotSize * spotSize;
+            document.getElementById('spotAreaResult').textContent = spotArea.toFixed(2) + ' cm²';
+            
+            // 计算LPC接收器面积 (cm²)
+            const lpcArea = lpcSize * lpcSize;
+            document.getElementById('lpcAreaResult').textContent = lpcArea.toFixed(2) + ' cm²';
+            
+            // 计算输入功率密度 (mW/cm²)
+            const inputPowerDensity = inputPower / spotArea;
+            document.getElementById('powerDensityResult').textContent = inputPowerDensity.toFixed(2) + ' mW/cm²';
+            
+            // 计算吸收系数
+            const melaninAbsorption = calculateMelaninAbsorption(wavelength);
+            const hemoglobinAbsorption = calculateHemoglobinAbsorption(wavelength, hemoglobinConcentration);
+            const waterAbsorption = calculateWaterAbsorption(wavelength);
+            const scatteringCoefficient = calculateScatteringCoefficient(wavelength, skinType, collagenDensity);
+            const totalAbsorption = melaninAbsorption + hemoglobinAbsorption + waterAbsorption + scatteringCoefficient;
+            
+            // 更新吸收特性显示
+            document.getElementById('melaninAbsorption').textContent = melaninAbsorption.toFixed(3);
+            document.getElementById('hemoglobinAbsorption').textContent = hemoglobinAbsorption.toFixed(3);
+            document.getElementById('waterAbsorption').textContent = waterAbsorption.toFixed(3);
+            document.getElementById('scatteringCoefficient').textContent = scatteringCoefficient.toFixed(3);
+            document.getElementById('totalAttenuation').textContent = totalAbsorption.toFixed(3);
+            document.getElementById('wavelengthResult').textContent = wavelength + ' nm';
+            
+            // 计算反射率
+            const reflectance = calculateReflectance(wavelength, skinType);
+            document.getElementById('reflectanceResult').textContent = (reflectance * 100).toFixed(2) + '%';
+            
+            // 计算穿透率（修正后的模型）
+            const transmissionRate = (1 - reflectance) * Math.exp(-totalAbsorption * skinThickness) * 100;
+            document.getElementById('transmissionRateResult').textContent = transmissionRate.toFixed(2) + '%';
+            
+            // 计算吸收率（修正后的模型）
+            const absorptionRate = (1 - reflectance) * (1 - Math.exp(-totalAbsorption * skinThickness)) * 100;
+            document.getElementById('absorptionRateResult').textContent = absorptionRate.toFixed(2) + '%';
+            
+            // 计算穿透后功率
+            const transmittedPower = inputPower * (1 - reflectance) * Math.exp(-totalAbsorption * skinThickness);
+            document.getElementById('transmittedPowerResult').textContent = transmittedPower.toFixed(2) + ' mW';
+            
+            // 计算吸收功率（修正后的模型）
+            const absorbedPower = inputPower * (1 - reflectance) * (1 - Math.exp(-totalAbsorption * skinThickness));
+            document.getElementById('absorbedPowerResult').textContent = absorbedPower.toFixed(2) + ' mW';
+            
+            // 计算穿透后功率密度
+            const transmittedPowerDensity = transmittedPower / spotArea;
+            
+            // 计算LPC接收功率（根据新规则）
+            let lpcReceivedPower;
+            if (spotArea >= lpcArea) {
+                // 匀化光斑面积大于或等于LPC接收器面积
+                lpcReceivedPower = transmittedPowerDensity * lpcArea;
+            } else {
+                // 匀化光斑面积小于LPC接收器面积
+                lpcReceivedPower = transmittedPower;
+            }
+            document.getElementById('lpcReceivedPower').textContent = lpcReceivedPower.toFixed(2) + ' mW';
+            
+            // 计算LPC输出功率
+            const lpcOutputPower = lpcReceivedPower * lpcEfficiency;
+            document.getElementById('lpcOutputPower').textContent = lpcOutputPower.toFixed(2) + ' mW';
+            
+            // 计算总发电量和等效充电量
+            const totalEnergy = lpcOutputPower * irradiationTime; // mJ
+            
+            // 修正公式：使用3600而不是3.6
+            const equivalentCharge = totalEnergy / (3600 * deviceVoltage); // mAh
+            document.getElementById('totalEnergy').textContent = totalEnergy.toFixed(2) + ' mJ';
+            document.getElementById('equivalentCharge').textContent = equivalentCharge.toFixed(2) + ' mAh';
+            
+            // 计算充电百分比
+            let chargePercentage = (equivalentCharge / batteryCapacity) * 100;
+            if (chargePercentage > 100) chargePercentage = 100;
+            document.getElementById('chargePercentage').textContent = chargePercentage.toFixed(2) + '%';
+            
+            // 生成电池充电效果预估
+            generateBatteryCharging(equivalentCharge, batteryCapacity);
+            
+            // 更新温度图表
+            const timePoints = Math.floor(irradiationTime / 5) + 1;
+            const timeLabels = Array.from({length: timePoints}, (_, i) => i * 5);
+            
+            const epidermisTempData = Array.from({length: timePoints}, (_, i) => {
+                return 37 + (inputPowerDensity / 100) * (1 - Math.exp(-0.05 * i * 5));
+            });
+            
+            const subcutaneousTempData = Array.from({length: timePoints}, (_, i) => {
+                return 37 + (inputPowerDensity / 200) * (1 - Math.exp(-0.05 * i * 5));
+            });
+            
+            const epidermisMaxTemp = Math.max(...epidermisTempData);
+            const subcutaneousMaxTemp = Math.max(...subcutaneousTempData);
+            
+            document.getElementById('epidermisMaxTemp').textContent = epidermisMaxTemp.toFixed(1) + '°C';
+            document.getElementById('epidermisTempRise').textContent = (epidermisMaxTemp - 37).toFixed(1) + '°C';
+            document.getElementById('subcutaneousMaxTemp').textContent = subcutaneousMaxTemp.toFixed(1) + '°C';
+            document.getElementById('subcutaneousTempRise').textContent = (subcutaneousMaxTemp - 37).toFixed(1) + '°C';
+            
+            document.getElementById('epidermisMaxTempSafety').textContent = epidermisMaxTemp.toFixed(1) + '°C';
+            document.getElementById('subcutaneousMaxTempSafety').textContent = subcutaneousMaxTemp.toFixed(1) + '°C';
+            
+            window.tempChart.data.labels = timeLabels;
+            window.tempChart.data.datasets[0].data = epidermisTempData;
+            window.tempChart.data.datasets[1].data = subcutaneousTempData;
+            window.tempChart.options.scales.y.min = 36;
+            window.tempChart.options.scales.y.max = Math.ceil(Math.max(epidermisMaxTemp, subcutaneousMaxTemp)) + 1;
+            window.tempChart.update();
+            
+            // 更新概览图表
+            window.summaryChart.data.datasets[0].data = [
+                inputPower, 
+                transmittedPower,
+                lpcOutputPower
+            ];
+            window.summaryChart.update();
+            
+            // 更新安全分析
+            const epidermisThreshold = skinTempThresholds[skinType].epidermis;
+            const subcutaneousThreshold = skinTempThresholds[skinType].subcutaneous;
+            
+            document.getElementById('tempThresholdResult').textContent = epidermisThreshold.toFixed(1) + '°C';
+            
+            // 计算皮肤损伤程度
+            const epidermisDamage = calculateDamageLevel(epidermisMaxTemp, epidermisThreshold);
+            const subcutaneousDamage = calculateDamageLevel(subcutaneousMaxTemp, subcutaneousThreshold);
+            
+            document.getElementById('epidermisDamageLevel').textContent = epidermisDamage.text;
+            document.getElementById('epidermisDamageVisual').textContent = epidermisDamage.text;
+            document.getElementById('epidermisDamageVisual').className = `damage-level ${epidermisDamage.class}`;
+            
+            document.getElementById('subcutaneousDamageLevel').textContent = subcutaneousDamage.text;
+            document.getElementById('subcutaneousDamageVisual').textContent = subcutaneousDamage.text;
+            document.getElementById('subcutaneousDamageVisual').className = `damage-level ${subcutaneousDamage.class}`;
+            
+            // 显示/隐藏警告
+            const safetyWarning = document.getElementById('safetyWarning');
+            const tempWarning = document.getElementById('tempWarning');
+            const safetyAdvice = document.getElementById('safetyAdvice');
+            
+            if (epidermisMaxTemp > epidermisThreshold || subcutaneousMaxTemp > subcutaneousThreshold) {
+                safetyWarning.style.display = 'block';
+                safetyAdvice.style.display = 'block';
+                
+                // 计算安全功率建议
+                const safeInputPower = inputPower * Math.min(
+                    epidermisThreshold / epidermisMaxTemp,
+                    subcutaneousThreshold / subcutaneousMaxTemp
+                );
+                
+                let recommendation = `1. 降低输入功率至${safeInputPower.toFixed(2)}mW以下<br>
+                                     2. 缩短辐照时间至${irradiationTime * 0.8}秒<br>
+                                     3. 分段辐照，每次不超过60秒，中间加入冷却时间`;
+                
+                if (skinType <= 3) {
+                    recommendation += "<br>4. 为浅色皮肤患者使用更长波长激光";
+                }
+                
+                document.getElementById('safetyRecommendation').innerHTML = recommendation;
+            } else {
+                safetyWarning.style.display = 'none';
+                safetyAdvice.style.display = 'none';
+            }
+            
+            if (epidermisMaxTemp > epidermisThreshold - 1 || subcutaneousMaxTemp > subcutaneousThreshold - 1) {
+                tempWarning.style.display = 'block';
+            } else {
+                tempWarning.style.display = 'none';
+            }
+            
+            // 绘制大小比较图
+            drawSizeComparison(spotSize, lpcSize);
+        }
+        
+        // 重置表单
+        function resetForm() {
+            document.getElementById('wavelength').value = '808';
+            document.getElementById('spotSize').value = '5.0';
+            document.getElementById('inputPower').value = '500';
+            document.getElementById('irradiationTime').value = '300';
+            document.getElementById('deviceVoltage').value = '3.7';
+            document.getElementById('lpcSize').value = '2.5';
+            document.getElementById('lpcEfficiency').value = '50';
+            document.getElementById('skinType').value = '3';
+            document.getElementById('skinThickness').value = '4.0';
+            document.getElementById('hemoglobinConcentration').value = '120';
+            document.getElementById('collagenDensity').value = '0.15';
+            document.getElementById('batteryCapacity').value = '1000';
+            
+            updateSkinTypeDescription();
+        }
+    </script>
+</body>
+</html>

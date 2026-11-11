@@ -1,0 +1,2905 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TCT AM0 阵列优化演示</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef2f5;
+      --panel: #ffffff;
+      --ink: #1e2832;
+      --muted: #607080;
+      --line: #d7e0e7;
+      --accent: #147a8b;
+      --accent-2: #8b5a14;
+      --danger: #b13d3d;
+      --shadow: 0 8px 24px rgba(34, 52, 68, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.45 "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 376px minmax(360px, 1fr) 424px;
+      gap: 0;
+    }
+
+    aside, main, section.result {
+      min-width: 0;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+    }
+
+    section.result { border-right: 0; }
+
+    .surface {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    h1, h2 {
+      margin: 0;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    h1 { font-size: 20px; }
+    h2 { font-size: 16px; }
+
+    .muted { color: var(--muted); }
+
+    .row {
+      display: grid;
+      grid-template-columns: 128px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+    }
+
+    .row.tight { grid-template-columns: 92px minmax(0, 1fr); }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mode {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f8fafb;
+    }
+
+    .mode label {
+      min-height: 38px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: var(--muted);
+    }
+
+    .mode input { display: none; }
+
+    .mode input:checked + span {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      background: var(--accent);
+      color: white;
+      font-weight: 650;
+    }
+
+    input[type="number"], output {
+      width: 100%;
+      min-height: 34px;
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    output {
+      display: flex;
+      align-items: center;
+      background: #f7fafb;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    button {
+      min-height: 36px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 7px 12px;
+      color: white;
+      background: var(--accent);
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #f9fbfc;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    button:disabled, input:disabled {
+      opacity: .48;
+      cursor: not-allowed;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f9fbfc;
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .chart-zone {
+      height: calc(100vh - 36px);
+      min-height: 570px;
+      display: grid;
+      grid-template-rows: auto 1fr auto 1fr;
+      gap: 12px;
+    }
+
+    .chart-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .chart {
+      min-height: 0;
+      padding: 12px;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 8px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      min-height: 190px;
+      border-radius: 6px;
+      background: #111820;
+      image-rendering: pixelated;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .legend {
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #142033, #2664a4, #23a794, #f0ca4d, #f27a35);
+    }
+
+    .notice {
+      color: var(--danger);
+      font-size: 13px;
+    }
+
+    .notice:empty {
+      display: none;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr 1fr;
+      }
+      main {
+        grid-column: 1 / -1;
+        grid-row: 1;
+      }
+      aside { grid-row: 2; }
+      section.result { grid-row: 2; }
+    }
+
+    @media (max-width: 700px) {
+      .app { grid-template-columns: 1fr; }
+      main, aside, section.result { grid-column: auto; grid-row: auto; border-right: 0; }
+      .chart-zone { height: auto; }
+      canvas { min-height: 240px; }
+    }
+
+    body {
+      padding: 24px;
+      background: #f8fafc;
+      color: #1e293b;
+      font-family: Arial, "Microsoft YaHei", "Segoe UI", sans-serif;
+    }
+
+    .dashboard-header {
+      max-width: 1440px;
+      margin: 0 auto 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .dashboard-title h1 {
+      font-size: 24px;
+      color: #0f172a;
+      font-weight: 750;
+    }
+
+    .dashboard-title p {
+      margin: 4px 0 0;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .metric-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .metric-card {
+      min-width: 138px;
+      padding: 8px 14px;
+      text-align: center;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, .05);
+    }
+
+    .metric-card span {
+      display: block;
+      font-size: 12px;
+      color: #94a3b8;
+      font-weight: 650;
+    }
+
+    .metric-card strong {
+      display: block;
+      margin-top: 1px;
+      font-size: 20px;
+      color: #059669;
+    }
+
+    .dashboard-shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: grid;
+      gap: 24px;
+    }
+
+    .dashboard-shell .app {
+      display: block;
+      min-height: 0;
+    }
+
+    .page-switcher {
+      max-width: 1440px;
+      margin: -8px auto 18px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .page-switcher button {
+      width: auto;
+      min-width: 92px;
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 4px;
+      border-color: #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+    }
+
+    .page-switcher button.active,
+    .page-switcher .pause-button.active {
+      border-color: #2563eb;
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    .page-switcher .pause-button {
+      min-width: 76px;
+      margin-left: 8px;
+    }
+
+    .page-section,
+    .page-subsection {
+      display: none !important;
+    }
+
+    .page-section.is-page-active,
+    .page-subsection.is-page-active {
+      display: revert !important;
+    }
+
+    .source-settings.page-section.is-page-active {
+      display: grid !important;
+    }
+
+    .metrics-band.page-section.is-page-active {
+      display: flex !important;
+    }
+
+    .top-chart.page-section.is-page-active {
+      display: block !important;
+    }
+
+    main.page-section.is-page-active,
+    section.result.page-section.is-page-active {
+      display: block !important;
+    }
+
+    .page-subsection.is-page-active {
+      display: grid !important;
+      gap: 12px;
+    }
+
+    .top-chart {
+      padding: 16px;
+    }
+
+    .source-settings {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .condition-row {
+      display: grid;
+      grid-template-columns: 160px 140px 220px minmax(520px, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .condition-row.solar-row {
+      grid-template-columns: 160px 180px 220px minmax(520px, 1fr);
+    }
+
+    body.am0-only .laser-row {
+      display: none;
+    }
+
+    .condition-row.is-inactive .turbulence-presets,
+    .condition-row.is-inactive .shade-presets,
+    .condition-row.is-inactive .turbulence-controls,
+    .condition-row.is-inactive .shade-controls {
+      opacity: .56;
+    }
+
+    .source-card,
+    .source-settings .toggle {
+      height: 100%;
+      min-height: 44px;
+    }
+
+    .damage-toggle-group {
+      display: grid;
+      gap: 8px;
+      align-content: stretch;
+    }
+
+    .damage-toggle-group .toggle {
+      height: auto;
+      min-height: 44px;
+    }
+
+    .source-card {
+      display: grid;
+      place-items: center;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #475569;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .source-card input {
+      display: none;
+    }
+
+    .source-card:has(input:checked) {
+      border-color: #2563eb;
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    .turbulence-presets,
+    .shade-presets {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      background: #f8fafc;
+    }
+
+    .turbulence-presets button,
+    .shade-presets button {
+      min-height: 36px;
+      padding: 6px 8px;
+      border-color: #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .turbulence-presets button.active,
+    .shade-presets button.active {
+      border-color: #2563eb;
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 6px 14px rgba(37, 99, 235, .18);
+    }
+
+    .turbulence-controls,
+    .shade-controls {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      background: #f8fafc;
+    }
+
+    .shade-controls {
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+    }
+
+    .turbulence-controls label,
+    .shade-controls label {
+      display: grid;
+      grid-template-rows: auto auto auto;
+      gap: 6px;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .range-number {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 62px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .range-number input[type="number"] {
+      min-height: 28px;
+      padding: 4px 6px;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .turbulence-controls small,
+    .shade-controls small {
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 400;
+    }
+
+    .metrics-band {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .run-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .run-field {
+      width: 138px;
+      display: grid;
+      gap: 4px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .run-field input {
+      min-height: 34px;
+      background: #ffffff;
+      font-size: 14px;
+    }
+
+    .pause-button {
+      min-width: 72px;
+      align-self: end;
+      background: #ffffff;
+      color: #334155;
+      border-color: #cbd5e1;
+    }
+
+    .pause-button.active {
+      background: #dc2626;
+      border-color: #dc2626;
+      color: #ffffff;
+      box-shadow: 0 6px 14px rgba(220, 38, 38, .16);
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .section-title {
+      margin: 0 0 8px;
+      padding-left: 8px;
+      border-left: 4px solid #7c3aed;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+
+    .section-note {
+      margin: 0 0 10px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    #powerChart {
+      width: 100%;
+      height: 260px;
+      min-height: 260px;
+      background: #fff;
+      border-radius: 2px;
+      image-rendering: auto;
+      cursor: crosshair;
+    }
+
+    .app {
+      min-height: 0;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 24px;
+    }
+
+    aside, main, section.result {
+      padding: 0;
+      border-right: 0;
+    }
+
+    aside {
+      grid-column: span 4;
+      display: grid;
+      gap: 24px;
+      align-content: start;
+    }
+
+    main {
+      grid-column: span 6;
+    }
+
+    section.result {
+      grid-column: span 6;
+    }
+
+    .surface {
+      border-color: #e2e8f0;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, .05);
+    }
+
+    .controls {
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .controls > .stack:first-child {
+      display: none;
+    }
+
+    .mode {
+      border-radius: 4px;
+      background: #f8fafc;
+    }
+
+    .mode input:checked + span {
+      background: #2563eb;
+    }
+
+    button {
+      border-radius: 4px;
+      background: #2563eb;
+      font-size: 13px;
+    }
+
+    button.secondary {
+      background: #f8fafc;
+      color: #334155;
+      border-color: #cbd5e1;
+    }
+
+    .toggle, input[type="number"], output {
+      border-radius: 4px;
+    }
+
+    .chart-zone {
+      height: auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    main .chart-zone {
+      display: grid;
+      grid-template-rows: auto minmax(520px, 1fr);
+    }
+
+    section.result .chart-zone {
+      display: grid;
+      grid-template-rows: auto minmax(520px, 1fr) auto;
+    }
+
+    .chart-head {
+      padding: 14px 16px 0;
+      border: 1px solid #e2e8f0;
+      border-bottom: 0;
+      border-radius: 4px 4px 0 0;
+      background: #fff;
+      align-items: center;
+    }
+
+    .chart-head h2 {
+      color: #1e293b;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .chart {
+      padding: 14px;
+      border-radius: 0 0 4px 4px;
+      border-top: 0;
+    }
+
+    canvas:not(#powerChart) {
+      min-height: 260px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 2px;
+    }
+
+    .legend {
+      height: 10px;
+      border-radius: 2px;
+      border: 1px solid #cbd5e1;
+      background: linear-gradient(90deg, rgba(248,250,252,.9), rgba(255,214,0,.75), rgba(255,0,0,.65));
+    }
+
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
+      gap: 6px;
+      align-content: start;
+      min-height: 260px;
+      padding: 2px;
+    }
+
+    .matrix-grid.result-rows {
+      grid-template-columns: 1fr;
+    }
+
+    .result-row {
+      display: grid;
+      grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+      gap: 6px;
+      align-items: start;
+    }
+
+    .matrix-cell {
+      position: relative;
+      min-height: 46px;
+      aspect-ratio: 1.18;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #cbd5e1;
+      border-radius: 2px;
+      padding: 4px;
+      overflow: hidden;
+      color: #1e293b;
+    }
+
+    .matrix-cell.is-array-cell {
+      box-shadow: inset 0 0 0 2px rgba(20, 122, 139, .58);
+    }
+
+    .matrix-cell.is-padding-cell {
+      border-style: dashed;
+      color: #94a3b8;
+    }
+
+    .matrix-cell.is-bypassed-cell {
+      border-color: #ef4444 !important;
+      box-shadow: inset 0 0 0 2px rgba(239, 68, 68, .55);
+      background-image: repeating-linear-gradient(135deg, rgba(239, 68, 68, .18) 0 6px, rgba(255, 255, 255, .18) 6px 12px);
+    }
+
+    .matrix-cell.is-bypassed-cell .cell-sub {
+      color: #b91c1c;
+      font-weight: 800;
+    }
+
+    .matrix-cell .cell-id {
+      position: absolute;
+      top: 3px;
+      left: 5px;
+      font-size: 10px;
+      color: rgba(30, 41, 59, .58);
+    }
+
+    .matrix-cell .cell-main {
+      font-size: 13px;
+      line-height: 1.1;
+      font-weight: 760;
+    }
+
+    .matrix-cell .cell-sub {
+      margin-top: 2px;
+      font-size: 10px;
+      color: rgba(30, 41, 59, .62);
+    }
+
+    .group-a { background: #eff6ff; border-color: #bae6fd; color: #0369a1; }
+    .group-b { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    .group-c { background: #faf5ff; border-color: #e9d5ff; color: #6b21a8; }
+    .group-d { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+    .group-e { background: #f8fafc; border-color: #cbd5e1; color: #475569; }
+
+    .chart canvas.matrix-fallback {
+      display: none;
+    }
+
+    .chart-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+
+    .chart-tools label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .chart-tools input {
+      accent-color: #2563eb;
+    }
+
+    .stats {
+      grid-template-columns: auto 116px;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .group-panel {
+      padding: 16px;
+    }
+
+    .group-panel h2 {
+      margin: 0 0 12px;
+      padding-left: 8px;
+      border-left: 4px solid #059669;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .group-panel table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .group-panel th {
+      padding: 0 0 8px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #94a3b8;
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .group-panel th:first-child,
+    .group-panel td:first-child {
+      text-align: left;
+    }
+
+    .group-panel td {
+      padding: 9px 0;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+      text-align: right;
+      font-weight: 650;
+    }
+
+    .group-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 750;
+      background: #eff6ff;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+
+    .result .surface.controls {
+      padding: 16px;
+    }
+
+    @media (max-width: 1120px) {
+      .condition-row,
+      .condition-row.solar-row {
+        grid-template-columns: 1fr;
+      }
+
+      .turbulence-controls,
+      .shade-controls {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      aside, main, section.result {
+        grid-column: span 12;
+      }
+      main .chart-zone {
+        grid-template-rows: auto minmax(320px, 1fr);
+      }
+      section.result .chart-zone {
+        grid-template-rows: auto minmax(320px, 1fr) auto;
+      }
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 14px; }
+      .dashboard-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .metric-row {
+        justify-content: stretch;
+        width: 100%;
+      }
+
+      .metrics-band {
+        justify-content: stretch;
+      }
+      .run-controls {
+        width: 100%;
+      }
+      .run-field {
+        flex: 1 1 150px;
+      }
+      .pause-button {
+        flex: 1 1 90px;
+      }
+      .metric-card {
+        flex: 1;
+      }
+
+      .turbulence-controls {
+        grid-template-columns: 1fr;
+      }
+      .shade-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+    /* AM0 presentation shares the laser dashboard's spacing and visual hierarchy. */
+    body.am0-only { background: #f1f4f4; padding: 24px 32px; color: #223333; }
+    .dashboard-header, .page-switcher, .dashboard-shell { max-width: 1600px; }
+    .dashboard-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 12px; border: 0; }
+    .dashboard-title h1 { font-size: 26px; color: #183434; }
+    .dashboard-title p { color: #697c7b; }
+    .header-status { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 12px; color: #147a67; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #149776; }
+    body.is-paused .status-dot { background: #b77816; }
+    body.is-paused .header-status { color: #956014; }
+    .page-switcher { justify-content: flex-start; margin: 0 auto 20px; padding-bottom: 12px; border-bottom: 1px solid #cddad8; }
+    .page-switcher button { box-shadow: none; min-height: 38px; border: 0; background: transparent; }
+    .page-switcher button.active { background: #173f3d; }
+    .page-switcher .pause-button { margin-left: auto; background: white; border: 1px solid #cddad8; }
+    .page-switcher .pause-button.active { background: #a96813; border-color: #a96813; }
+    .dashboard-shell { gap: 20px; }
+    .surface { box-shadow: none; border-color: #d7e2df; }
+    .source-settings { border: 0; border-radius: 0; border-bottom: 1px solid #d7e2df; padding: 0 0 18px; background: transparent; }
+    .condition-row.solar-row { grid-template-columns: 90px minmax(420px, 1fr) minmax(260px, 340px); align-items: center; gap: 14px; }
+    .solar-row .source-card:has(input:checked) { min-height: 40px; background: #173f3d; border-color: #173f3d; }
+    .damage-toggle-group { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .damage-toggle-group .toggle { min-height: 40px; background: white; font-size: 12px; }
+    .shade-presets { padding: 0; background: transparent; border: 0; }
+    .shade-presets button { min-height: 40px; font-size: 12px; }
+    .shade-presets button.active { background: #147a68; border-color: #147a68; box-shadow: none; }
+    .shade-controls { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 14px 0 0; border: 0; border-top: 1px solid #d7e2df; background: transparent; gap: 14px 24px; }
+    .shade-controls small { color: #718580; }
+    .sample-action { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .sample-action.page-section.is-page-active { display: flex !important; }
+    #resampleDamage { background: #147a68; }
+    .sample-action span { color: #677d76; font-size: 12px; }
+    .run-controls { width: 100%; gap: 16px; }
+    .run-field { width: 160px; }
+    .metric-row { display: grid; width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; background: white; border-block: 1px solid #d7e2df; }
+    .metric-card { min-width: 0; text-align: left; border: 0; border-radius: 0; box-shadow: none; padding: 16px 24px; border-right: 1px solid #e3ebe8; }
+    .metric-card:last-child { border-right: 0; }
+    .metric-card span { color: #677d76; font-size: 12px; }
+    .metric-card strong { font-size: 30px; font-variant-numeric: tabular-nums; color: #147a68; }
+    .metric-card .metric-relative { display: block; margin-top: 3px; color: #677d76; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .metric-card:nth-child(2) strong { color: #376dbc; }
+    .section-title { border-color: #147a68; color: #223c35; }
+    .section-note { display: none; }
+    .top-chart { border: 0; border-radius: 0; padding: 18px 20px 8px; }
+    canvas#powerChart { height: 250px; min-height: 250px; }
+    .power-chart-plot { position: relative; }
+    .power-chart-plot canvas { display: block; }
+    .power-chart-cursor, .power-chart-tooltip { position: absolute; pointer-events: none; }
+    .power-chart-cursor { border-left: 1px dashed #64748b; }
+    .power-chart-tooltip { z-index: 1; max-width: calc(100% - 16px); padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; box-shadow: 0 3px 12px #172b4120; color: #223c35; font-size: 12px; }
+    .power-chart-tooltip dl { margin: 4px 0 0; }
+    .power-chart-tooltip dl div { display: flex; justify-content: space-between; gap: 12px; padding-top: 3px; }
+    .power-chart-tooltip dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .power-chart-tooltip .tooltip-delta { margin-top: 5px; padding-top: 6px; border-top: 1px solid #e2e8f0; }
+    .tooltip-delta dd { font-size: 13px; font-weight: 750; }
+    #totalImprovement, #totalPowerDelta, .tooltip-delta dd { color: #64748b; }
+    #totalImprovement[data-sign="1"], #totalPowerDelta[data-sign="1"], .tooltip-delta dd[data-sign="1"] { color: #047857; }
+    #totalImprovement[data-sign="-1"], #totalPowerDelta[data-sign="-1"], .tooltip-delta dd[data-sign="-1"] { color: #b91c1c; }
+    .am0-overview.page-section.is-page-active { display: grid !important; }
+    .am0-overview { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+    .overview-head { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .overview-head span { color: #677d76; font-size: 12px; }
+    canvas#damageCanvas { width: 100%; height: 340px; min-height: 0; border: 0; border-radius: 4px; background: #102523; image-rendering: auto; }
+    .damage-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 12px; color: #61746e; }
+    .damage-legend span { display: flex; align-items: center; gap: 6px; }
+    .damage-legend i { width: 10px; height: 10px; background: var(--swatch); border-radius: 2px; }
+    .power-color-scale { flex: 1 1 240px; min-width: 0; display: grid; grid-template-columns: auto minmax(50px, 1fr) auto; align-items: center; gap: 10px; }
+    .power-color-scale i { width: 100%; height: 8px; background: linear-gradient(90deg, #6b390d, #ffc83d, #fff9df); }
+    .damage-legend[hidden] { display: none; }
+    .distribution-switch { display: inline-grid; grid-template-columns: 1fr 1fr; margin: 0 0 10px; border: 1px solid #cddad8; border-radius: 4px; overflow: hidden; }
+    .distribution-switch label { position: relative; cursor: pointer; }
+    .distribution-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .distribution-switch span { display: block; padding: 7px 16px; background: white; color: #47625a; font-size: 12px; }
+    .distribution-switch input:checked + span { background: #173f3d; color: white; }
+    .distribution-switch input:focus-visible + span { outline: 2px solid #147a68; outline-offset: -3px; }
+    .condition-stats { display: grid; grid-template-columns: 1fr 1fr; margin: 0; }
+    .condition-stats div { padding: 16px 0; border-bottom: 1px solid #d7e2df; }
+    .condition-stats dt { color: #677d76; font-size: 12px; }
+    .condition-stats dd { margin: 5px 0 0; font-size: 25px; font-weight: 650; color: #234c41; font-variant-numeric: tabular-nums; }
+    .power-bars { margin-top: 26px; display: grid; gap: 18px; }
+    .power-bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .power-track { height: 9px; background: #dde6e2; }
+    .power-track i { display: block; height: 100%; background: #376dbc; width: 0; }
+    #optimizedBar { background: #147a68; }
+    .chart-tools { flex-wrap: wrap; }
+    .result-row { padding: 12px 0; border-bottom: 1px solid #d7e2df; }
+    .result .chart, .group-panel { border: 0; border-radius: 0; }
+    .matrix-grid { gap: 4px; }
+    .matrix-cell { min-height: 0; }
+    .matrix-grid.dense-cells .cell-id, .matrix-grid.dense-cells .cell-sub { display: none; }
+    .matrix-grid.micro-cells .cell-main { display: none; }
+    button:focus-visible, input:focus-visible { outline: 2px solid #147a68; outline-offset: 3px; }
+    body.am0-only.presentation-mode .source-settings.page-section, body.presentation-mode .run-controls { display: none !important; }
+    @media (max-width: 1100px) {
+      body.am0-only { padding: 18px; }
+      .condition-row.solar-row { grid-template-columns: 90px minmax(0, 1fr); }
+      .shade-presets { grid-column: 1 / -1; max-width: 360px; }
+      .shade-controls { gap: 14px; }
+    }
+    @media (max-width: 700px) {
+      body.am0-only { padding: 12px; }
+      .dashboard-header { align-items: flex-start; flex-direction: column; gap: 10px; }
+      .dashboard-title h1 { font-size: 21px; }
+      .page-switcher { gap: 4px; }
+      .page-switcher button { min-width: 0; padding: 0 9px; font-size: 12px; }
+      .page-switcher .pause-button { margin-left: 0; flex: 0 0 auto; }
+      .damage-toggle-group { grid-template-columns: 1fr; }
+      .shade-controls { grid-template-columns: 1fr 1fr; }
+      .range-number { grid-template-columns: minmax(0, 1fr) 60px; gap: 4px; }
+      .run-controls { display: grid; grid-template-columns: 1fr 1fr; }
+      .run-field { width: auto; }
+      .metric-row { grid-template-columns: 1fr 1fr; }
+      .metric-card { padding: 14px; border-bottom: 1px solid #e3ebe8; }
+      .metric-card strong { font-size: 24px; }
+      .top-chart { padding: 14px 6px 0; }
+      .am0-overview { grid-template-columns: 1fr; gap: 20px; }
+    }
+  </style>
+</head>
+<body class="am0-only">
+  <header class="dashboard-header">
+    <div class="dashboard-title">
+      <h1>TCT AM0 光伏阵列实验台</h1>
+      <p>AM0 入射 · 电池损坏与旁路 · MPPT 阵列重组</p>
+    </div>
+    <div class="header-status" role="status"><i class="status-dot" aria-hidden="true"></i><span id="liveStatus">稳态记录</span><span id="frameReadout">001</span></div>
+  </header>
+
+  <nav class="page-switcher" aria-label="页面切换">
+    <button type="button" class="active" data-page-target="1" aria-pressed="true">工况与功率</button>
+    <button type="button" data-page-target="2" aria-pressed="false">原始阵列</button>
+    <button type="button" data-page-target="3" aria-pressed="false">优化阵列</button>
+    <button type="button" data-page-target="4" aria-pressed="false">分组指标</button>
+    <button id="pauseUpdate" class="pause-button secondary" type="button" aria-pressed="false">暂停</button>
+    <button id="presentationToggle" type="button" aria-pressed="false">收起参数</button>
+    <button id="fullscreenToggle" type="button">全屏</button>
+  </nav>
+
+  <div class="dashboard-shell">
+    <div class="surface source-settings page-section is-page-active" data-page-section="1">
+      <div class="condition-row laser-row">
+        <label class="source-card">
+          <input type="radio" name="source" value="laser">
+          <span>激光</span>
+        </label>
+
+        <label class="toggle">
+          <span>激光湍流</span>
+          <input id="turbulence" type="checkbox">
+        </label>
+
+        <div class="turbulence-presets" aria-label="激光湍流预设">
+          <button type="button" class="secondary" data-turbulence-preset="weak">微湍流</button>
+          <button type="button" class="secondary active" data-turbulence-preset="medium">中湍流</button>
+          <button type="button" class="secondary" data-turbulence-preset="strong">强湍流</button>
+        </div>
+
+        <div class="turbulence-controls">
+          <label for="cn2">
+            湍流结构常数 Cn²
+            <span class="range-number">
+              <input id="cn2" type="range" min="0.1" max="20" step="0.1" value="2">
+              <input id="cn2Value" type="number" min="0.1" max="20" step="0.1" value="2">
+            </span>
+            <small>单位 1e-20 m^(-2/3)</small>
+          </label>
+          <label for="wavelengthNm">
+            激光波长
+            <span class="range-number">
+              <input id="wavelengthNm" type="range" min="400" max="1600" step="1" value="808">
+              <input id="wavelengthNmValue" type="number" min="400" max="1600" step="1" value="808">
+            </span>
+            <small>单位 nm，参与波数 k</small>
+          </label>
+          <label for="beamWaistMm">
+            束腰半径
+            <span class="range-number">
+              <input id="beamWaistMm" type="range" min="1" max="80" step="0.5" value="20">
+              <input id="beamWaistMmValue" type="number" min="1" max="80" step="0.5" value="20">
+            </span>
+            <small>单位 mm，决定扩散敏感度</small>
+          </label>
+          <label for="propagationDistance">
+            传播距离
+            <span class="range-number">
+              <input id="propagationDistance" type="range" min="50" max="3000" step="10" value="1000">
+              <input id="propagationDistanceValue" type="number" min="50" max="3000" step="10" value="1000">
+            </span>
+            <small>单位 m，距离越远扰动越强</small>
+          </label>
+        </div>
+      </div>
+
+      <div class="condition-row solar-row">
+        <label class="source-card">
+          <input type="radio" name="source" value="solar" checked>
+          <span>AM0</span>
+        </label>
+
+        <div class="damage-toggle-group">
+          <label class="toggle">
+            <span>损坏程度</span>
+            <input id="shadow" type="checkbox" disabled>
+          </label>
+          <label class="toggle" for="damagePositionRandom">
+            <span>损坏位置随机</span>
+            <input id="damagePositionRandom" type="checkbox" checked disabled>
+          </label>
+          <label class="toggle" for="damageRandom">
+            <span>损坏状态随机</span>
+            <input id="damageRandom" type="checkbox" checked disabled>
+          </label>
+        </div>
+
+        <div class="shade-presets" aria-label="AM0 损坏程度预设">
+          <button type="button" class="secondary" data-shade-preset="weak">轻微损坏</button>
+          <button type="button" class="secondary active" data-shade-preset="medium">中度损坏</button>
+          <button type="button" class="secondary" data-shade-preset="strong">严重损坏</button>
+        </div>
+
+        <div class="shade-controls">
+          <label for="shadeSize">
+            未损坏部分大小
+            <span class="range-number">
+              <input id="shadeSize" type="range" min="0" max="1" step="0.01" value="0.5" disabled>
+              <input id="shadeSizeValue" type="number" min="0" max="1" step="0.01" value="0.5" disabled>
+            </span>
+            <small>未损坏单元比例</small>
+          </label>
+          <label for="shadeRatio1">
+            损坏状态 1 占比
+            <span class="range-number">
+              <input id="shadeRatio1" type="range" min="0" max="1" step="0.01" value="0.25" disabled>
+              <input id="shadeRatio1Value" type="number" min="0" max="1" step="0.01" value="0.25" disabled>
+            </span>
+            <small>占总单元比例</small>
+          </label>
+          <label for="shadeRatio2">
+            损坏状态 2 占比
+            <span class="range-number">
+              <input id="shadeRatio2" type="range" min="0" max="1" step="0.01" value="0.15" disabled>
+              <input id="shadeRatio2Value" type="number" min="0" max="1" step="0.01" value="0.15" disabled>
+            </span>
+            <small>占总单元比例</small>
+          </label>
+          <label for="shadeRatio3">
+            损坏状态 3 占比
+            <span class="range-number">
+              <input id="shadeRatio3" type="range" min="0" max="1" step="0.01" value="0.10" disabled>
+              <input id="shadeRatio3Value" type="number" min="0" max="1" step="0.01" value="0.10" disabled>
+            </span>
+            <small>占总单元比例</small>
+          </label>
+          <label for="baseLimit">
+            未损坏强度
+            <span class="range-number">
+              <input id="baseLimit" type="range" min="0" max="1" step="0.01" value="1" disabled>
+              <input id="baseLimitValue" type="number" min="0" max="1" step="0.01" value="1" disabled>
+            </span>
+            <small>AM0 均匀入射，无随机波动</small>
+          </label>
+          <label for="shadeLimit1">
+            状态 1 强度下限
+            <span class="range-number">
+              <input id="shadeLimit1" type="range" min="0" max="1" step="0.01" value="0.6" disabled>
+              <input id="shadeLimit1Value" type="number" min="0" max="1" step="0.01" value="0.6" disabled>
+            </span>
+            <small>轻微损坏强度下限</small>
+          </label>
+          <label for="shadeLimit2">
+            状态 2 强度下限
+            <span class="range-number">
+              <input id="shadeLimit2" type="range" min="0" max="1" step="0.01" value="0.4" disabled>
+              <input id="shadeLimit2Value" type="number" min="0" max="1" step="0.01" value="0.4" disabled>
+            </span>
+            <small>中度损坏强度下限</small>
+          </label>
+          <label for="shadeLimit3">
+            状态 3 强度下限
+            <span class="range-number">
+              <input id="shadeLimit3" type="range" min="0" max="1" step="0.01" value="0.2" disabled>
+              <input id="shadeLimit3Value" type="number" min="0" max="1" step="0.01" value="0.2" disabled>
+            </span>
+            <small>严重损坏强度下限</small>
+          </label>
+          <label for="bypassThreshold">
+            二极管旁路电流阈值
+            <span class="range-number">
+              <input id="bypassThreshold" type="range" min="0" max="2" step="0.01" value="0" disabled>
+              <input id="bypassThresholdValue" type="number" min="0" max="2" step="0.01" value="0" disabled>
+            </span>
+            <small>Isc 低于该电流(A)时从串联中去除</small>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="sample-action page-section" data-page-section="1">
+      <button id="resampleDamage" type="button">重新随机</button>
+      <span>固定损坏样本 · AM0 稳态工况</span>
+    </div>
+    <div class="metrics-band page-section" data-page-section="1">
+      <div class="run-controls">
+        <label class="run-field" for="groups">
+          并联组数
+          <input id="groups" type="number" min="2" max="80" step="1" value="10">
+        </label>
+        <label class="run-field" for="items">
+          每组串联通道数
+          <input id="items" type="number" min="2" max="80" step="1" value="10">
+        </label>
+        <label class="run-field" for="power">
+          入射功率 W
+          <input id="power" type="number" min="1" step="1" value="100">
+        </label>
+        <label class="run-field" for="optGroups">
+          优化分组数
+          <input id="optGroups" type="number" min="2" max="20" step="1" value="5">
+        </label>
+      </div>
+      <div class="metric-row">
+        <div class="metric-card">
+          <span>单帧功率增量</span>
+          <strong id="totalImprovement">--</strong>
+          <small class="metric-relative" id="relativeImprovement" title="原始功率低于 0.1 W 或优化后功率的 1% 时，省略相对增幅"></small>
+        </div>
+        <div class="metric-card"><span>原始功率</span><strong id="topRawPower">--</strong></div>
+        <div class="metric-card"><span>优化后功率</span><strong id="topResultPower">--</strong></div>
+        <div class="metric-card"><span>累计功率差值</span><strong id="totalPowerDelta">--</strong></div>
+      </div>
+    </div>
+
+    <div class="surface top-chart page-section" data-page-section="1">
+      <h2 class="section-title">输出功率对比 (W)</h2>
+      <p class="section-note">原始阵列按组内串联、组间并联计算；曲线对比当前串并联阵列与 TCT2026 动态重组后的 MPPT 输出功率。</p>
+      <div id="notice" class="notice" role="status"></div>
+      <div class="power-chart-plot">
+        <canvas id="powerChart" aria-label="原始输出电功率和优化后输出电功率的时序对比"></canvas>
+        <div id="powerChartCursor" class="power-chart-cursor" aria-hidden="true" hidden></div>
+        <div id="powerChartTooltip" class="power-chart-tooltip" role="tooltip" hidden>
+          <strong id="tooltipFrame"></strong>
+          <dl>
+            <div><dt>原始输出电功率</dt><dd id="tooltipRaw"></dd></div>
+            <div><dt>优化后输出电功率</dt><dd id="tooltipResult"></dd></div>
+            <div class="tooltip-delta"><dt>单帧功率增量</dt><dd id="tooltipDelta"></dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <section class="am0-overview page-section" data-page-section="1">
+      <div>
+        <div class="overview-head"><h2 id="distributionTitle">单元光功率分布</h2><span id="arrayShape">--</span></div>
+        <div class="distribution-switch" role="group" aria-label="阵列分布视图">
+          <label><input type="radio" name="distributionView" value="power" checked><span>功率分布</span></label>
+          <label><input type="radio" name="distributionView" value="status"><span>损坏状态</span></label>
+        </div>
+        <canvas id="damageCanvas" aria-label="AM0 各电池片光功率连续色阶分布，单位 W，叉号为二极管旁路"></canvas>
+        <div id="powerLegend" class="damage-legend">
+          <div class="power-color-scale"><span>0 W</span><i aria-hidden="true"></i><span id="cellPowerScaleMax">-- W</span></div>
+          <span><i style="--swatch:#f5f8f7;border:2px solid #839994;"></i>× 旁路</span>
+        </div>
+        <div id="statusLegend" class="damage-legend" hidden>
+          <span><i style="--swatch:#51bcab"></i>未损坏</span>
+          <span><i style="--swatch:#edcb70"></i>状态 1</span>
+          <span><i style="--swatch:#e58b63"></i>状态 2</span>
+          <span><i style="--swatch:#c05d72"></i>状态 3</span>
+          <span><i style="--swatch:#f5f8f7;border:2px solid #839994;"></i>× 旁路</span>
+        </div>
+      </div>
+      <div>
+        <div class="overview-head"><h2>当前阵列工况</h2><span>固定样本</span></div>
+        <dl class="condition-stats">
+          <div><dt>电池总数</dt><dd id="cellCount">--</dd></div>
+          <div><dt>损坏电池</dt><dd id="damagedCount">--</dd></div>
+          <div><dt>二极管旁路</dt><dd id="bypassCount">--</dd></div>
+          <div><dt>实际优化组数</dt><dd id="actualGroups">--</dd></div>
+        </dl>
+        <div class="power-bars">
+          <div><div class="power-bar-label"><span>原始串并联阵列</span><strong id="originalBarValue">--</strong></div><div class="power-track"><i id="originalBar"></i></div></div>
+          <div><div class="power-bar-label"><span>TCT 优化阵列</span><strong id="optimizedBarValue">--</strong></div><div class="power-track"><i id="optimizedBar"></i></div></div>
+        </div>
+      </div>
+    </section>
+  <div class="app">
+    <main class="page-section" data-page-section="2">
+      <div class="chart-zone">
+        <div class="chart-head">
+          <h2 id="rawMatrixTitle">原始串并联阵列输出分布</h2>
+          <output id="rawPower" style="display:none">--</output>
+        </div>
+        <div class="surface chart">
+          <div class="chart-tools">
+            <label><input type="checkbox" id="showRawCellId" checked> 通道 ID</label>
+            <label><input type="checkbox" id="showRawGroupName" checked> 串联组别</label>
+            <label><input type="checkbox" id="showRawCellPower"> 单元功率</label>
+            <span>损坏低输出</span>
+            <div class="legend" style="flex:1; min-width:120px;" aria-hidden="true"></div>
+            <span style="color:#dc2626;font-weight:700;">AM0 未损坏输出</span>
+          </div>
+          <div id="rawMatrix" class="matrix-grid"></div>
+          <canvas id="rawCanvas" class="matrix-fallback"></canvas>
+          <div class="legend" aria-hidden="true"></div>
+        </div>
+
+      </div>
+    </main>
+
+    <section class="result page-section" data-page-section="3 4">
+      <div class="chart-zone" style="grid-template-rows:auto 1fr auto;">
+        <div class="page-subsection" data-page-section="3">
+          <div class="chart-head">
+          <h2>优化后输出分布</h2>
+          </div>
+          <div class="surface chart">
+            <div class="chart-tools">
+              <label><input type="checkbox" id="showCellId" checked> 通道 ID</label>
+              <label><input type="checkbox" id="showGroupName" checked> 拓扑组别</label>
+              <label><input type="checkbox" id="showCellPower"> 单元功率</label>
+            </div>
+            <div id="resultMatrix" class="matrix-grid"></div>
+            <canvas id="resultCanvas" class="matrix-fallback"></canvas>
+            <div class="legend" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="surface group-panel page-subsection" data-page-section="4">
+          <h2>TCT 各分组实时参数指标</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>组别</th>
+                <th>模块数</th>
+                <th>组功率</th>
+                <th>Ilim</th>
+              </tr>
+            </thead>
+            <tbody id="groupTableBody">
+              <tr><td colspan="4" style="text-align:left;color:#94a3b8;">自动计算后生成</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = { light: null, rawLight: null, rawDisplay: null, best: null, history: [], cumulativePowerDelta: 0, liveTimer: null, frame: 0, paused: false, selectedHistoryIndex: null, currentPage: "1", damagePattern: null, chartPointer: null };
+
+    const controls = {
+      groups: $("groups"), items: $("items"), power: $("power"), optGroups: $("optGroups"),
+      pauseUpdate: $("pauseUpdate"),
+      turbulence: $("turbulence"), shadow: $("shadow"), damageRandom: $("damageRandom"), damagePositionRandom: $("damagePositionRandom"),
+      shadeSize: $("shadeSize"), baseLimit: $("baseLimit"),
+      shadeRatio1: $("shadeRatio1"), shadeRatio2: $("shadeRatio2"), shadeRatio3: $("shadeRatio3"),
+      shadeLimit1: $("shadeLimit1"), shadeLimit2: $("shadeLimit2"), shadeLimit3: $("shadeLimit3"),
+      bypassThreshold: $("bypassThreshold"),
+      shadeSizeValue: $("shadeSizeValue"), baseLimitValue: $("baseLimitValue"),
+      shadeRatio1Value: $("shadeRatio1Value"), shadeRatio2Value: $("shadeRatio2Value"), shadeRatio3Value: $("shadeRatio3Value"),
+      shadeLimit1Value: $("shadeLimit1Value"), shadeLimit2Value: $("shadeLimit2Value"), shadeLimit3Value: $("shadeLimit3Value"),
+      bypassThresholdValue: $("bypassThresholdValue"),
+      cn2: $("cn2"),
+      cn2Value: $("cn2Value"),
+      wavelengthNm: $("wavelengthNm"),
+      wavelengthNmValue: $("wavelengthNmValue"),
+      beamWaistMm: $("beamWaistMm"),
+      beamWaistMmValue: $("beamWaistMmValue"),
+      propagationDistance: $("propagationDistance"),
+      propagationDistanceValue: $("propagationDistanceValue")
+    };
+
+    const turbulencePresets = {
+      weak: { cn2: 0.5, beamWaistMm: 25, propagationDistance: 500 },
+      medium: { cn2: 2, beamWaistMm: 20, propagationDistance: 1000 },
+      strong: { cn2: 8, beamWaistMm: 12, propagationDistance: 1800 }
+    };
+
+    const shadePresets = {
+      weak: { shadeSize: 0.75, baseLimit: 1, shadeRatio1: 0.16, shadeRatio2: 0.06, shadeRatio3: 0.03, shadeLimit1: 0.72, shadeLimit2: 0.55, shadeLimit3: 0.38 },
+      medium: { shadeSize: 0.5, baseLimit: 1, shadeRatio1: 0.25, shadeRatio2: 0.15, shadeRatio3: 0.10, shadeLimit1: 0.6, shadeLimit2: 0.4, shadeLimit3: 0.2 },
+      strong: { shadeSize: 0.28, baseLimit: 1, shadeRatio1: 0.22, shadeRatio2: 0.25, shadeRatio3: 0.25, shadeLimit1: 0.48, shadeLimit2: 0.28, shadeLimit3: 0.08 }
+    };
+
+    function sourceMode() {
+      return document.querySelector("input[name='source']:checked").value;
+    }
+
+    function setNotice(text) {
+      if ($("notice")) $("notice").textContent = text || "";
+    }
+
+    function clampInt(value, min, max) {
+      return Math.max(min, Math.min(max, Math.round(Number(value) || min)));
+    }
+
+    function zeros(rows, cols) {
+      return Array.from({ length: rows }, () => Array(cols).fill(0));
+    }
+
+    function sumMatrix(a) {
+      return a.reduce((s, row) => s + row.reduce((r, v) => r + v, 0), 0);
+    }
+
+    function normalizeToPower(a, power) {
+      const total = sumMatrix(a) || 1;
+      return a.map(row => row.map(v => v * power / total));
+    }
+
+    function transposeMatrix(matrix) {
+      if (!matrix || !matrix.length) return matrix;
+      const rows = matrix.length;
+      const cols = matrix[0]?.length || 0;
+      return Array.from({ length: cols }, (_, c) => Array.from({ length: rows }, (_, r) => matrix[r]?.[c] ?? 0));
+    }
+
+    function matrixPower(a) {
+      if (!a || !a.length) return 0;
+      return originalPartitionPower(a).P_total;
+    }
+
+    function gaussianLight(rows, cols, power) {
+      const out = zeros(rows, cols);
+      const centerX = (cols + 1) / 2;
+      const centerY = (rows + 1) / 2;
+      const sigma = 4;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          out[y][x] = Math.exp(-((x + 1 - centerX) ** 2) / (2 * sigma ** 2) - ((y + 1 - centerY) ** 2) / (2 * sigma ** 2));
+        }
+      }
+      return normalizeToPower(out, power);
+    }
+
+    function scaleMatrix(a, factor) {
+      return a.map(row => row.map(value => value * factor));
+    }
+
+    function cropMatrix(a, bounds) {
+      return a.slice(bounds.top, bounds.top + bounds.rows)
+        .map(row => row.slice(bounds.left, bounds.left + bounds.cols));
+    }
+
+    function normalizeDisplayCrop(display, bounds, power) {
+      const active = cropMatrix(display, bounds);
+      const factor = power / (sumMatrix(active) || 1);
+      return { active: scaleMatrix(active, factor), display: scaleMatrix(display, factor), bounds };
+    }
+
+    function gaussianLightSquare(rows, cols, power) {
+      const size = Math.max(rows, cols);
+      const display = zeros(size, size);
+      const center = (size + 1) / 2;
+      const sigma = 4;
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          display[y][x] = Math.exp(-((x + 1 - center) ** 2) / (2 * sigma ** 2) - ((y + 1 - center) ** 2) / (2 * sigma ** 2));
+        }
+      }
+      const bounds = {
+        top: Math.floor((size - rows) / 2),
+        left: Math.floor((size - cols) / 2),
+        rows,
+        cols
+      };
+      return normalizeDisplayCrop(display, bounds, power);
+    }
+
+    function shuffledIndices(total) {
+      const indices = Array.from({ length: total }, (_, i) => i);
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+      return indices;
+    }
+
+    function orderedIndices(total) {
+      return Array.from({ length: total }, (_, i) => i);
+    }
+
+    function getDamagePattern(rows, cols, count1, count2, count3, shadeCount) {
+      const randomPosition = controls.damagePositionRandom?.checked ?? true;
+      const key = [rows, cols, count1, count2, count3, shadeCount, randomPosition ? "random" : "ordered"].join(":");
+      if (state.damagePattern?.key === key) return state.damagePattern;
+      const indices = randomPosition ? shuffledIndices(rows * cols) : orderedIndices(rows * cols);
+      const n1 = Math.min(count1, shadeCount);
+      const n2 = Math.min(count2, Math.max(0, shadeCount - n1));
+      const n3 = Math.min(count3, Math.max(0, shadeCount - n1 - n2));
+      state.damagePattern = {
+        key,
+        state1: indices.slice(0, n1),
+        state2: indices.slice(n1, n1 + n2),
+        state3: indices.slice(n1 + n2, n1 + n2 + n3)
+      };
+      return state.damagePattern;
+    }
+
+    function solarLight(rows, cols, power) {
+      const p0 = Math.max(0, Math.min(1, 1 - Number(controls.shadeSize.value)));
+      const p10 = Number(controls.baseLimit.value);
+      const p01 = Number(controls.shadeRatio1.value);
+      const p02 = Number(controls.shadeRatio2.value);
+      const p03 = Number(controls.shadeRatio3.value);
+      const p011 = Number(controls.shadeLimit1.value);
+      const p021 = Number(controls.shadeLimit2.value);
+      const p031 = Number(controls.shadeLimit3.value);
+      const useRandomDamage = controls.damageRandom?.checked ?? true;
+      const sampleKey = [rows, cols, controls.shadow.checked, controls.damagePositionRandom.checked,
+        useRandomDamage, p0, p10, p01, p02, p03, p011, p021, p031].join(":");
+      if (state.solarSample?.key === sampleKey) return normalizeToPower(state.solarSample.values, power);
+      const out = zeros(rows, cols).map(row => row.map(() => p10));
+      const categories = zeros(rows, cols);
+      const total = rows * cols;
+      if (controls.shadow.checked) {
+        const count1 = Math.max(0, Math.min(total, Math.floor(total * p01)));
+        const count2 = Math.max(0, Math.min(total - count1, Math.floor(total * p02)));
+        const count3 = Math.max(0, Math.min(total - count1 - count2, Math.floor(total * p03)));
+        const shadeCount = Math.min(total, count1 + count2 + count3, Math.floor(total * p0));
+        const pattern = getDamagePattern(rows, cols, count1, count2, count3, shadeCount);
+        pattern.state1.forEach(idx => {
+          const r = idx % rows;
+          const c = Math.floor(idx / rows);
+          out[r][c] = useRandomDamage ? p011 + (p10 - p011) * Math.random() : p011;
+          categories[r][c] = 1;
+        });
+        pattern.state2.forEach(idx => {
+          const r = idx % rows;
+          const c = Math.floor(idx / rows);
+          out[r][c] = useRandomDamage ? p021 + (p011 - p021) * Math.random() : p021;
+          categories[r][c] = 2;
+        });
+        pattern.state3.forEach(idx => {
+          const r = idx % rows;
+          const c = Math.floor(idx / rows);
+          out[r][c] = useRandomDamage ? p031 + (p021 - p031) * Math.random() : p031;
+          categories[r][c] = 3;
+        });
+      }
+      state.solarSample = { key: sampleKey, values: out, categories };
+      return normalizeToPower(out, power);
+    }
+
+    function normalRandom() {
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    function applyTurbulence(light) {
+      const rows = light.length;
+      const cols = light[0]?.length || rows;
+      const cn2 = Math.max(1e-24, (Number(controls.cn2.value) || 2) * 1e-20);
+      const wavelength = Math.max(1e-9, (Number(controls.wavelengthNm.value) || 808) * 1e-9);
+      const waist = Math.max(1e-4, (Number(controls.beamWaistMm.value) || 20) * 1e-3);
+      const distance = Math.max(1, Number(controls.propagationDistance.value) || 1000);
+      const k = 2 * Math.PI / wavelength;
+      const rytov = 1.23 * cn2 * Math.pow(k, 7 / 6) * Math.pow(distance, 11 / 6);
+      const strength = Math.min(1.5, Math.max(0.03, Math.sqrt(Math.max(0, rytov))));
+      const diffractionScale = Math.min(1.2, Math.max(0.05, (wavelength * distance) / (Math.PI * waist * waist)));
+      const radius = Math.max(1, Math.round(1 + Math.min(3.5, strength * 1.4 + diffractionScale * 0.65)));
+      const texture = Math.max(2.5, Math.min(16, rows * waist / Math.max(wavelength * distance, 1e-9) + 4 / strength));
+      const phase = zeros(rows, cols);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const wave = Math.sin((x + y) / texture) + Math.cos((x * 1.7 - y) / (texture + 1.5));
+          phase[y][x] = (normalRandom() * 0.35 + wave * 0.25) * strength;
+        }
+      }
+      const out = zeros(rows, cols);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          let acc = 0, weight = 0;
+          for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+              const yy = Math.min(rows - 1, Math.max(0, y + dy));
+              const xx = Math.min(cols - 1, Math.max(0, x + dx));
+              const dist2 = dx * dx + dy * dy;
+              const w = Math.exp(-dist2 / Math.max(1, radius * radius * (0.65 + diffractionScale)));
+              acc += light[yy][xx] * (1 + phase[yy][xx]) * w;
+              weight += w;
+            }
+          }
+          out[y][x] = Math.max(0, acc / weight);
+        }
+      }
+      return normalizeToPower(out, sumMatrix(light));
+    }
+
+    function median(values) {
+      const a = values.slice().sort((x, y) => x - y);
+      const mid = Math.floor(a.length / 2);
+      return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+    }
+
+    function linearFit3(points) {
+      const mx = points.reduce((s, p) => s + p[0], 0) / points.length;
+      const my = points.reduce((s, p) => s + p[1], 0) / points.length;
+      let num = 0, den = 0;
+      for (const [x, y] of points) {
+        num += (x - mx) * (y - my);
+        den += (x - mx) ** 2;
+      }
+      const g = den === 0 ? 0 : num / den;
+      return { g, b: my - g * mx, V0: mx };
+    }
+
+    function syntheticCurrentAtVoltage(v, voc, isc) {
+      const r = Math.max(0, Math.min(1.05, v / Math.max(voc, 1e-12)));
+      const knee = Math.max(0, (r - 0.72) / 0.28);
+      return Math.max(0.002 * isc, isc * (1 - 0.035 * r - 0.90 * knee ** 2.2));
+    }
+
+    function makeWindow(voc, isc, frac, dV = 0.020) {
+      const v0 = frac * voc;
+      return [v0 - dV, v0, v0 + dV].map(v => [v, syntheticCurrentAtVoltage(v, voc, isc)]);
+    }
+
+    function lightToPvInputs(light) {
+      const flat = light.flat();
+      const totalLight = flat.reduce((s, v) => s + v, 0) || 1;
+      const avgLight = totalLight / flat.length;
+      const bypassCurrent = Math.max(0, Number(controls.bypassThreshold?.value) || 0);
+      const nominalVoc = 2.25;
+      const nominalIsc = Math.max(1e-4, avgLight / (0.82 * 1.85));
+      return flat.map((value, index) => {
+        const ratio = Math.max(0.02, value / Math.max(avgLight, 1e-9));
+        const isc = nominalIsc * ratio;
+        const bypassed = bypassCurrent > 0 && isc < bypassCurrent;
+        const voc = nominalVoc + 0.055 * Math.log(ratio);
+        return {
+          index,
+          light: value,
+          bypassed,
+          Voc: Math.max(1.6, voc),
+          Isc: Math.max(1e-5, isc),
+          winL: makeWindow(Math.max(1.6, voc), Math.max(1e-5, isc), 0.70),
+          winH: makeWindow(Math.max(1.6, voc), Math.max(1e-5, isc), 0.90)
+        };
+      });
+    }
+
+    function buildModel2v0KneeFrom3pt(Voc, Isc, winL, winH, opts = {}) {
+      const options = {
+        enforceNegativeSlopes: true,
+        gmin_frac: 1e-2,
+        doSoftCalH: true,
+        maxAbsIshift_frac: 0.10,
+        ...opts
+      };
+      const V0L = winL.reduce((s, p) => s + p[0], 0) / winL.length;
+      const I0L = median(winL.map(p => p[1]));
+      let bL = Isc;
+      let gL = (I0L - Isc) / Math.max(V0L, 1e-12);
+      const h = linearFit3(winH);
+      let gH = h.g;
+      let bH = h.b;
+      const gmin = Math.max(1e-12, options.gmin_frac * Math.abs(Isc) / Math.max(Voc, 1e-12));
+      if (options.enforceNegativeSlopes) {
+        if (!Number.isFinite(gL) || gL > -gmin) gL = -gmin;
+        if (!Number.isFinite(gH) || gH > -gmin) gH = -gmin;
+      }
+      bL = Isc;
+      if (options.doSoftCalH) {
+        const maxShift = options.maxAbsIshift_frac * Math.abs(Isc);
+        const eVoc = gH * Voc + bH;
+        const db = Math.max(-maxShift, Math.min(maxShift, -eVoc));
+        bH += db;
+      }
+      const den = gL - gH;
+      let Vx = (!Number.isFinite(den) || den === 0) ? 0.85 * Voc : (bH - bL) / den;
+      Vx = Math.min(Math.max(Vx, 0), Voc);
+      const Ix = gL * Vx + bL;
+      return { Voc, Isc, V0L, I0L, V0H: h.V0, gL, bL, gH, bH, Vx, Ix };
+    }
+
+    function modelMpp2v0(model) {
+      const candV = [0, model.Voc, model.Vx];
+      const VLs = -model.bL / (2 * model.gL);
+      if (Number.isFinite(VLs) && VLs >= 0 && VLs <= model.Vx) candV.push(VLs);
+      const VHs = -model.bH / (2 * model.gH);
+      if (Number.isFinite(VHs) && VHs >= model.Vx && VHs <= model.Voc) candV.push(VHs);
+      let best = { Pmp: -Infinity, Vmp: 0, Imp: 0 };
+      for (const V of [...new Set(candV)]) {
+        const I = V <= model.Vx ? model.gL * V + model.bL : model.gH * V + model.bH;
+        const P = V * I;
+        if (P > best.Pmp) best = { Pmp: P, Vmp: V, Imp: I };
+      }
+      return best;
+    }
+
+    function modelVFromIKnee2v0(model, Iwork, kneeFrac = [0.70, 0.95]) {
+      const VL = (Iwork - model.bL) / model.gL;
+      const VH = (Iwork - model.bH) / model.gH;
+      let Vwork = Iwork >= model.Ix ? VL : VH;
+      const Vlo = kneeFrac[0] * model.Voc;
+      const Vhi = kneeFrac[1] * model.Voc;
+      return Math.min(Math.max(Vwork, Vlo), Vhi);
+    }
+
+    function cellBuildModelAndImp(cell) {
+      const model = buildModel2v0KneeFrom3pt(cell.Voc, cell.Isc, cell.winL, cell.winH);
+      const mpp = modelMpp2v0(model);
+      return { model, Imp: cell.bypassed ? Number.NEGATIVE_INFINITY : mpp.Imp, mpp, bypassed: !!cell.bypassed };
+    }
+
+    function groupMpptWithIlimKnee(models, Ilim, opts = {}) {
+      const kneeFrac = opts.kneeFrac || [0.70, 0.95];
+      const nIgrid = opts.nIgrid || 80;
+      const IminFrac = opts.IminFrac ?? 0.05;
+      const IlimUsed = Math.max(Ilim, 0);
+      if (IlimUsed <= 0 || models.length === 0) {
+        return { Pmp_lim: 0, Imp_lim: 0, Vmp_lim: 0, Ilim_used: IlimUsed };
+      }
+      let Imin = Math.max(0, IminFrac * IlimUsed);
+      if (Imin >= IlimUsed) Imin = 0;
+      let best = { Pmp_lim: -Infinity, Imp_lim: 0, Vmp_lim: 0, Ilim_used: IlimUsed };
+      for (let k = 0; k < nIgrid; k++) {
+        const Iw = nIgrid === 1 ? IlimUsed : Imin + (IlimUsed - Imin) * k / (nIgrid - 1);
+        const Vsum = models.reduce((s, model) => s + modelVFromIKnee2v0(model, Iw, kneeFrac), 0);
+        const P = Iw * Vsum;
+        if (P > best.Pmp_lim) best = { Pmp_lim: P, Imp_lim: Iw, Vmp_lim: Vsum, Ilim_used: IlimUsed };
+      }
+      return best;
+    }
+
+    function sortGroupsByImp(groups, imp, dir = "asc") {
+      return groups.map(group => group.slice().sort((a, b) => dir === "asc" ? imp[a] - imp[b] : imp[b] - imp[a]));
+    }
+
+    function initGroups(order, count, mode = "block") {
+      const groups = Array.from({ length: count }, () => []);
+      if (mode === "roundrobin") {
+        order.forEach((idx, k) => groups[k % count].push(idx));
+      } else {
+        for (let g = 0; g < count; g++) {
+          const start = Math.round(order.length * g / count);
+          const end = Math.round(order.length * (g + 1) / count);
+          groups[g] = order.slice(start, end);
+        }
+      }
+      return groups;
+    }
+
+    function activeGroupCells(group, models) {
+      return group.filter(i => !models[i]?.bypassed);
+    }
+
+    function evaluatePartitionPower(groups, models, imp, opts = {}) {
+      const Pmp_group = [];
+      const Ilim_group = [];
+      const Imp_group = [];
+      const Vmp_group = [];
+      for (const group of groups) {
+        const active = activeGroupCells(group, models);
+        if (!active.length) {
+          Pmp_group.push(0); Ilim_group.push(0); Imp_group.push(0); Vmp_group.push(0);
+          continue;
+        }
+        const Ilim = Math.min(...active.map(i => imp[i]));
+        const r = groupMpptWithIlimKnee(active.map(i => models[i].model), Ilim, opts);
+        Pmp_group.push(r.Pmp_lim);
+        Ilim_group.push(Ilim);
+        Imp_group.push(r.Imp_lim);
+        Vmp_group.push(r.Vmp_lim);
+      }
+      return {
+        P_total: Pmp_group.reduce((s, v) => s + v, 0),
+        Pmp_group, Ilim_group, Imp_group, Vmp_group
+      };
+    }
+
+    function getPairs(mode, count) {
+      const pairs = [];
+      const step = mode === "skipone" ? 2 : 1;
+      for (let i = 0; i + step < count; i++) pairs.push([i, i + step]);
+      return pairs;
+    }
+
+    function findBestMove(groups, models, imp, evalOpts, Pbest, Kmax, mode) {
+      let bestDelta = 0;
+      let bestMove = null;
+      for (const [gA, gB] of getPairs(mode, groups.length)) {
+        const activeA = activeGroupCells(groups[gA], models);
+        const activeB = activeGroupCells(groups[gB], models);
+        if (!activeA.length || !activeB.length) continue;
+        const IlimA = Math.min(...activeA.map(i => imp[i]));
+        const IlimB = Math.min(...activeB.map(i => imp[i]));
+        const aStrong = IlimA >= IlimB;
+        const plan = aStrong
+          ? [[[gA, gB], "weak"], [[gB, gA], "strong"], [[gA, gB], "strong"], [[gB, gA], "weak"]]
+          : [[[gB, gA], "weak"], [[gA, gB], "strong"], [[gB, gA], "strong"], [[gA, gB], "weak"]];
+        for (const [[gFrom, gTo], takeEnd] of plan) {
+          const from = groups[gFrom].slice();
+          const to = groups[gTo].slice();
+          if (from.length <= 1) continue;
+          const kMaxTry = Math.min(Kmax, from.length - 1);
+          for (let k = 1; k <= kMaxTry; k++) {
+            const moved = takeEnd === "weak" ? from.slice(0, k) : from.slice(from.length - k);
+            const left = takeEnd === "weak" ? from.slice(k) : from.slice(0, from.length - k);
+            let cand = groups.map(group => group.slice());
+            cand[gFrom] = left;
+            cand[gTo] = to.concat(moved);
+            cand = sortGroupsByImp(cand, imp, "asc");
+            const r = evaluatePartitionPower(cand, models, imp, evalOpts);
+            const delta = r.P_total - Pbest;
+            if (delta > bestDelta) {
+              bestDelta = delta;
+              bestMove = { gFrom, gTo, k, Pnew: r.P_total, tag: takeEnd === "weak" ? "weakEnd" : "strongEnd" };
+            }
+          }
+        }
+      }
+      return { bestMove, bestDelta };
+    }
+
+    function applyMove(groups, imp, move) {
+      const out = groups.map(group => group.slice());
+      const from = out[move.gFrom].slice();
+      const to = out[move.gTo].slice();
+      const moved = move.tag === "weakEnd" ? from.slice(0, move.k) : from.slice(from.length - move.k);
+      out[move.gFrom] = move.tag === "weakEnd" ? from.slice(move.k) : from.slice(0, from.length - move.k);
+      out[move.gTo] = to.concat(moved);
+      return sortGroupsByImp(out, imp, "asc");
+    }
+
+    function TCTopt5Power(cells, NA = 60, opts = {}) {
+      const options = {
+        nGroups: 5,
+        initMode: "block",
+        Kmax: 12,
+        kneeFrac: [0.70, 0.95],
+        nIgrid: 80,
+        IminFrac: 0.05,
+        escapeEnable: true,
+        escapeEvery: 1,
+        escapeMaxRounds: 3,
+        ...opts
+      };
+      const built = cells.map(cellBuildModelAndImp);
+      const models = built;
+      const imp = built.map(x => x.Imp);
+      const orderImp = imp.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+      let groups = sortGroupsByImp(initGroups(orderImp, options.nGroups, options.initMode), imp, "asc");
+      const evalOpts = { kneeFrac: options.kneeFrac, nIgrid: options.nIgrid, IminFrac: options.IminFrac };
+      let base = evaluatePartitionPower(groups, models, imp, evalOpts);
+      let Pbest = base.P_total;
+      let escapeStallCount = 0;
+      for (let it = 1; it <= NA; it++) {
+        let { bestMove, bestDelta } = findBestMove(groups, models, imp, evalOpts, Pbest, options.Kmax, "adjacent");
+        if ((!bestMove || bestDelta <= 0) && options.escapeEnable) {
+          escapeStallCount++;
+          const doEscapeNow = ((escapeStallCount - 1) % options.escapeEvery) === 0;
+          if (doEscapeNow && escapeStallCount <= options.escapeMaxRounds) {
+            const escape = findBestMove(groups, models, imp, evalOpts, Pbest, options.Kmax, "skipone");
+            if (escape.bestMove && escape.bestDelta > bestDelta) {
+              bestMove = escape.bestMove;
+              bestDelta = escape.bestDelta;
+            }
+          }
+        }
+        if (!bestMove || bestDelta <= 0) break;
+        groups = applyMove(groups, imp, bestMove);
+        Pbest = bestMove.Pnew;
+        escapeStallCount = 0;
+      }
+      const final = evaluatePartitionPower(groups, models, imp, evalOpts);
+      return { groups, P_total: final.P_total, Pmp_group: final.Pmp_group, Ilim_group: final.Ilim_group, Imp_group: final.Imp_group, Vmp_group: final.Vmp_group, Imp_cell: imp, models, orderImp, basePower: base.P_total };
+    }
+
+    function groupsToLightMatrix(groups, cells) {
+      const width = Math.max(...groups.map(group => group.length), 1);
+      return groups.map(group => {
+        const row = group.map(i => cells[i].light);
+        while (row.length < width) row.push(0);
+        return row;
+      });
+    }
+
+    function rawVisualMatrix() {
+      return transposeMatrix(currentRawDisplayMatrix());
+    }
+
+    function originalPartitionPower(light) {
+      const cells = lightToPvInputs(light);
+      const built = cells.map(cellBuildModelAndImp);
+      const models = built;
+      const imp = built.map(x => x.Imp);
+      const cols = light[0]?.length || 1;
+      const groups = light.map((row, r) => row.map((_, c) => r * cols + c));
+      return evaluatePartitionPower(groups, models, imp, { kneeFrac: [0.70, 0.95], nIgrid: 80, IminFrac: 0.05 });
+    }
+
+    function tct2026PowerForMatrix(light) {
+      const cells = lightToPvInputs(light);
+      const built = cells.map(cellBuildModelAndImp);
+      const models = built;
+      const imp = built.map(x => x.Imp);
+      const orderImp = imp.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+      const nGroups = clampInt(controls.optGroups?.value || 5, 2, Math.min(20, cells.length || 2));
+      const groups = sortGroupsByImp(initGroups(orderImp, nGroups, "block"), imp, "asc");
+      return evaluatePartitionPower(groups, models, imp, { kneeFrac: [0.70, 0.95], nIgrid: 80, IminFrac: 0.05 });
+    }
+
+    function chooseBestOptimization(light) {
+      const cells = lightToPvInputs(light);
+      const nGroups = clampInt(controls.optGroups?.value || 5, 2, Math.min(20, cells.length || 2));
+      const result = TCTopt5Power(cells, 5, { nGroups, Kmax: 2, nIgrid: 32 });
+      if (controls.optGroups) controls.optGroups.value = nGroups;
+      return {
+        name: `TCT2026 ${nGroups}组 MPPT 功率优化`,
+        matrix: groupsToLightMatrix(result.groups, cells),
+        power: result.P_total,
+        details: result
+      };
+    }
+
+    function colorMap(t) {
+      const stops = [
+        [20, 32, 51], [38, 100, 164], [35, 167, 148], [240, 202, 77], [242, 122, 53]
+      ];
+      const scaled = Math.max(0, Math.min(1, t)) * (stops.length - 1);
+      const i = Math.floor(scaled);
+      const f = scaled - i;
+      const a = stops[i], b = stops[Math.min(stops.length - 1, i + 1)];
+      return a.map((v, k) => Math.round(v + (b[k] - v) * f));
+    }
+
+    function drawHeatmap(canvas, matrix) {
+      const ctx = canvas.getContext("2d");
+      const rows = matrix?.length || 1;
+      const cols = matrix?.[0]?.length || 1;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      if (!matrix) return;
+      const max = Math.max(...matrix.flat(), 1e-9);
+      const cellW = rect.width / cols;
+      const cellH = rect.height / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const [red, green, blue] = colorMap(matrix[r][c] / max);
+          ctx.fillStyle = `rgb(${red},${green},${blue})`;
+          ctx.fillRect(c * cellW, r * cellH, Math.ceil(cellW), Math.ceil(cellH));
+        }
+      }
+      ctx.strokeStyle = "rgba(255,255,255,.28)";
+      ctx.lineWidth = 1;
+      for (let c = 0; c <= cols; c++) {
+        ctx.beginPath(); ctx.moveTo(c * cellW, 0); ctx.lineTo(c * cellW, rect.height); ctx.stroke();
+      }
+      for (let r = 0; r <= rows; r++) {
+        ctx.beginPath(); ctx.moveTo(0, r * cellH); ctx.lineTo(rect.width, r * cellH); ctx.stroke();
+      }
+    }
+
+    function drawPowerChart(rawPower = 0, turbPower = 0, resultPower = 0) {
+      const canvas = $("powerChart");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      const history = state.history.length ? state.history : [{
+        t: 0,
+        raw: rawPower,
+        result: resultPower
+      }];
+      const series = [
+        { label: "原始阵列", key: "raw", color: "#2563eb" },
+        { label: "TCT优化", key: "result", color: "#059669" }
+      ];
+      const values = history.flatMap(item => series.map(s => item[s.key] || 0));
+      const max = Math.max(...values, 1);
+      const min = Math.max(0, Math.min(...values, 0) * 0.96);
+      const left = 54;
+      const right = 18;
+      const top = 20;
+      const bottom = 50;
+      const chartW = rect.width - left - right;
+      const chartH = rect.height - top - bottom;
+      state.chartGeometry = { left, top, chartW, chartH, width: rect.width, height: rect.height };
+
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.fillStyle = "#94a3b8";
+      ctx.lineWidth = 1;
+      ctx.font = "12px Arial";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i <= 4; i++) {
+        const y = top + chartH * i / 4;
+        const value = min + (max - min) * (1 - i / 4);
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(left + chartW, y);
+        ctx.stroke();
+        ctx.fillText(value.toFixed(1), left - 8, y);
+      }
+
+      const xFor = i => left + (history.length <= 1 ? chartW : chartW * i / (history.length - 1));
+      const yFor = value => top + chartH - ((value - min) / Math.max(max - min, 1e-9)) * chartH;
+
+      function drawSmoothSeries(points) {
+        if (!points.length) return;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        if (points.length === 1) return;
+        for (let i = 0; i < points.length - 1; i++) {
+          const p0 = points[Math.max(0, i - 1)];
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const p3 = points[Math.min(points.length - 1, i + 2)];
+          const cp1x = p1.x + (p2.x - p0.x) / 6;
+          const cp1y = p1.y + (p2.y - p0.y) / 6;
+          const cp2x = p2.x - (p3.x - p1.x) / 6;
+          const cp2y = p2.y - (p3.y - p1.y) / 6;
+          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+        }
+      }
+
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.beginPath();
+      ctx.moveTo(left, top + chartH);
+      ctx.lineTo(left + chartW, top + chartH);
+      ctx.stroke();
+      ctx.fillStyle = "#94a3b8";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const tickCount = Math.min(6, history.length);
+      for (let i = 0; i < tickCount; i++) {
+        const index = tickCount <= 1 ? 0 : Math.round(i * (history.length - 1) / (tickCount - 1));
+        const x = xFor(index);
+        ctx.beginPath();
+        ctx.moveTo(x, top + chartH);
+        ctx.lineTo(x, top + chartH + 5);
+        ctx.stroke();
+        ctx.fillText(`${history[index].t + 1}`, x, top + chartH + 8);
+      }
+
+      series.forEach(item => {
+        ctx.strokeStyle = item.color;
+        ctx.lineWidth = 2.5;
+        const points = history.map((point, i) => ({
+          x: xFor(i),
+          y: yFor(point[item.key] || 0)
+        }));
+        drawSmoothSeries(points);
+        ctx.stroke();
+        ctx.fillStyle = item.color;
+        points.forEach(point => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      });
+
+      if (state.selectedHistoryIndex != null && history[state.selectedHistoryIndex]) {
+        const x = xFor(state.selectedHistoryIndex);
+        ctx.strokeStyle = "#dc2626";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, top + chartH);
+        ctx.stroke();
+      }
+
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.font = "12px Arial";
+      let legendX = left;
+      series.forEach(item => {
+        ctx.fillStyle = item.color;
+        ctx.fillRect(legendX, rect.height - 24, 16, 3);
+        ctx.fillStyle = "#475569";
+        ctx.fillText(item.label, legendX + 22, rect.height - 22);
+        legendX += 120;
+      });
+      updatePowerChartHover();
+    }
+
+    function updateTopMetrics(rawPower = 0, turbPower = 0, resultPower = 0) {
+      const delta = resultPower - rawPower;
+      const roundedDelta = Number(delta.toFixed(1));
+      const improvement = $("totalImprovement");
+      if (improvement) {
+        improvement.textContent = `${roundedDelta > 0 ? "+" : ""}${roundedDelta.toFixed(1)} W`;
+        improvement.dataset.sign = String(Math.sign(roundedDelta));
+      }
+      const relative = $("relativeImprovement");
+      if (relative) {
+        const baselineFloor = Math.max(0.1, resultPower * 0.01);
+        relative.textContent = rawPower < baselineFloor
+          ? "原始功率过低"
+          : `较原始 ${delta > 0 ? "+" : ""}${(100 * delta / rawPower).toFixed(2)}%`;
+      }
+      if ($("topRawPower")) $("topRawPower").textContent = rawPower.toFixed(1);
+      if ($("topResultPower")) $("topResultPower").textContent = resultPower.toFixed(1);
+      updateTotalPowerDelta();
+      drawPowerChart(rawPower, turbPower, resultPower);
+    }
+
+    function updateTotalPowerDelta() {
+      const el = $("totalPowerDelta");
+      if (!el) return;
+      const total = Number(state.cumulativePowerDelta.toFixed(1));
+      el.textContent = state.frame ? `${total > 0 ? "+" : ""}${total.toFixed(1)} W` : "--";
+      el.dataset.sign = String(Math.sign(total));
+    }
+
+    function groupLabel(index) {
+      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      return index < letters.length ? letters[index] : `G${index + 1}`;
+    }
+
+    function groupClass(index) {
+      return ["group-a", "group-b", "group-c", "group-d", "group-e"][index % 5];
+    }
+
+    function rawDisplayOptions() {
+      const cells = state.rawLight ? lightToPvInputs(state.rawLight) : [];
+      const bounds = state.rawDisplay?.bounds;
+      const visualBounds = bounds ? { top: bounds.left, left: bounds.top, rows: bounds.cols, cols: bounds.rows } : null;
+      return {
+        showId: $("showRawCellId")?.checked ?? true,
+        showGroup: $("showRawGroupName")?.checked ?? true,
+        showPower: $("showRawCellPower")?.checked ?? false,
+        activeBounds: visualBounds,
+        seriesVertical: true,
+        bypassMap: cells.map(cell => cell.bypassed)
+      };
+    }
+
+    function currentRawDisplayMatrix() {
+      return state.rawDisplay?.matrix || state.rawLight;
+    }
+
+    function renderGroupTable(best) {
+      const tbody = $("groupTableBody");
+      if (!tbody) return;
+      if (!best?.details?.groups) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:left;color:#94a3b8;">自动计算后生成</td></tr>';
+        return;
+      }
+      tbody.innerHTML = best.details.groups.map((group, i) => {
+        const p = best.details.Pmp_group?.[i] || 0;
+        const ilim = best.details.Ilim_group?.[i] || 0;
+        return `<tr>
+          <td><span class="group-badge">${groupLabel(i)} 组</span></td>
+          <td>${group.length}</td>
+          <td>${p.toFixed(2)} W</td>
+          <td>${ilim.toFixed(3)}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function heatColor(value, max) {
+      const t = Math.max(0, Math.min(1, value / Math.max(max, 1e-9)));
+      const r = Math.round(248 + (255 - 248) * t);
+      const g = Math.round(250 + (22 - 250) * t);
+      const b = Math.round(252 + (22 - 252) * t);
+      return {
+        bg: `rgba(${r}, ${g}, ${b}, 0.58)`,
+        border: `rgba(${Math.max(0, r - 24)}, ${Math.max(0, g - 24)}, ${Math.max(0, b - 24)}, 0.72)`
+      };
+    }
+
+    function setMatrixDensity(el, cols) {
+      const width = el.getBoundingClientRect().width / Math.max(cols, 1) - 4;
+      el.classList.toggle("dense-cells", width < 50);
+      el.classList.toggle("micro-cells", width < 24);
+    }
+
+    function renderLightMatrix(containerId, matrix, options = {}) {
+      const el = $(containerId);
+      if (!el) return;
+      el.classList.remove("result-rows");
+      if (!matrix || !matrix.length) {
+        el.innerHTML = "";
+        return;
+      }
+      const rows = matrix.length;
+      const cols = matrix[0]?.length || 1;
+      setMatrixDensity(el, cols);
+      const max = Math.max(...matrix.flat(), 1e-9);
+      const showId = options.showId ?? true;
+      const showGroup = options.showGroup ?? false;
+      const showPower = options.showPower ?? true;
+      const activeBounds = options.activeBounds || { top: 0, left: 0, rows, cols };
+      el.style.setProperty("--cols", cols);
+      el.innerHTML = matrix.map((row, r) => row.map((value, c) => {
+        const active = r >= activeBounds.top && r < activeBounds.top + activeBounds.rows && c >= activeBounds.left && c < activeBounds.left + activeBounds.cols;
+        const activeRow = r - activeBounds.top;
+        const activeCol = c - activeBounds.left;
+        const id = options.seriesVertical ? activeCol * activeBounds.rows + activeRow + 1 : activeRow * activeBounds.cols + activeCol + 1;
+        const bypassed = active && !!options.bypassMap?.[id - 1];
+        const color = heatColor(value, max);
+        const isEmpty = value <= 0;
+        const idHtml = active && showId ? `<span class="cell-id">#${id}</span>` : "";
+        const main = active ? (showGroup ? `G${(options.seriesVertical ? activeCol : activeRow) + 1}` : (showPower ? value.toFixed(1) : "")) : "";
+        const sub = bypassed ? "旁路" : (active ? (showPower && showGroup ? `${value.toFixed(1)}W` : (showPower ? (options.unit || "W") : "")) : "");
+        const cls = active ? `is-array-cell${bypassed ? " is-bypassed-cell" : ""}` : "is-padding-cell";
+        return `<div class="matrix-cell ${cls}" title="通道 #${id} · ${value.toFixed(3)} W${bypassed ? ' · 二极管旁路' : ''}" style="background:${isEmpty ? "#f8fafc" : color.bg};border-color:${isEmpty ? "#e2e8f0" : color.border};opacity:${isEmpty ? .42 : 1}">
+          ${isEmpty ? "" : idHtml}
+          <span class="cell-main">${isEmpty ? "" : main}</span>
+          <span class="cell-sub">${isEmpty ? "" : sub}</span>
+        </div>`;
+      }).join("")).join("");
+    }
+
+    function renderResultMatrix(best) {
+      const el = $("resultMatrix");
+      if (!el) return;
+      if (!best?.details?.groups) {
+        el.classList.remove("result-rows");
+        el.innerHTML = "";
+        return;
+      }
+      const cells = lightToPvInputs(state.light || state.rawLight || []);
+      const showId = $("showCellId")?.checked ?? true;
+      const showGroup = $("showGroupName")?.checked ?? true;
+      const showPower = $("showCellPower")?.checked ?? false;
+      el.classList.add("result-rows");
+      setMatrixDensity(el, Math.min(12, Math.max(...best.details.groups.map(group => group.length), 1)));
+      el.innerHTML = best.details.groups.map((group, g) => {
+        const cols = Math.max(1, Math.min(group.length, 12));
+        return `<div class="result-row" style="--cols:${cols}">` + group.map(idx => {
+        const cell = cells[idx] || { light: 0 };
+        const idHtml = showId ? `<span class="cell-id">#${idx + 1}</span>` : "";
+        const main = showGroup ? groupLabel(g) : "•";
+        const sub = cell.bypassed ? "旁路" : (showPower ? `${cell.light.toFixed(1)}W` : `Ilim ${(best.details.Ilim_group?.[g] || 0).toFixed(3)}`);
+        return `<div class="matrix-cell ${groupClass(g)}${cell.bypassed ? " is-bypassed-cell" : ""}" title="通道 #${idx + 1} · ${groupLabel(g)} 组 · ${cell.light.toFixed(3)} W${cell.bypassed ? ' · 二极管旁路' : ''}">
+          ${idHtml}
+          <span class="cell-main">${main}</span>
+          <span class="cell-sub">${sub}</span>
+        </div>`;
+      }).join("") + `</div>`;
+      }).join("");
+    }
+
+    function cloneData(value) {
+      return value == null ? value : JSON.parse(JSON.stringify(value));
+    }
+
+    function updatePresentationStatus() {
+      document.body.classList.toggle("is-paused", state.paused);
+      $("liveStatus").textContent = state.paused ? "已暂停" : "稳态记录";
+      const selected = state.history[state.selectedHistoryIndex];
+      $("frameReadout").textContent = String(selected ? selected.t + 1 : Math.max(1, state.frame)).padStart(3, "0");
+      $("resampleDamage").disabled = !controls.shadow.checked
+        || !(controls.damagePositionRandom.checked || controls.damageRandom.checked);
+    }
+
+    function renderAm0Overview() {
+      if (!state.rawLight?.length) return;
+      const cells = lightToPvInputs(state.rawLight);
+      const categories = state.solarSample?.categories || zeros(state.rawLight.length, state.rawLight[0].length);
+      const showPower = document.querySelector('input[name="distributionView"]:checked').value === "power";
+      $("distributionTitle").textContent = showPower ? "单元光功率分布" : "损坏与旁路分布";
+      $("powerLegend").hidden = !showPower;
+      $("statusLegend").hidden = showPower;
+      const powers = transposeMatrix(state.rawLight);
+      const rows = powers.length, cols = powers[0].length;
+      const maxPower = Math.max(0, ...powers.flat());
+      $("cellPowerScaleMax").textContent = `${Number(maxPower.toPrecision(4))} W`;
+      $("arrayShape").textContent = `${cols} 组并联 × ${rows} 通道串联`;
+      $("cellCount").textContent = cells.length;
+      $("damagedCount").textContent = categories.flat().filter(value => value > 0).length;
+      $("bypassCount").textContent = cells.filter(cell => cell.bypassed).length;
+      $("actualGroups").textContent = state.best?.details?.groups?.length ?? "--";
+      const raw = state.currentPower?.raw ?? 0;
+      const result = state.best?.power ?? 0;
+      const scale = Math.max(raw, result, 1e-9);
+      $("originalBar").style.width = `${raw / scale * 100}%`;
+      $("optimizedBar").style.width = `${result / scale * 100}%`;
+      $("originalBarValue").textContent = `${raw.toFixed(1)} W`;
+      $("optimizedBarValue").textContent = `${result.toFixed(1)} W`;
+      const canvas = $("damageCanvas");
+      canvas.setAttribute("aria-label", showPower ? "AM0 各电池片光功率连续色阶分布，单位 W，叉号为二极管旁路" : "AM0 电池阵列损坏状态与二极管旁路分布");
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#102523";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      const size = Math.min((rect.width - 36) / cols, (rect.height - 36) / rows);
+      const left = (rect.width - cols * size) / 2, top = (rect.height - rows * size) / 2;
+      const colors = [[107, 57, 13], [255, 200, 61], [255, 249, 223]];
+      const statusColors = ["#51bcab", "#edcb70", "#e58b63", "#c05d72"];
+      const gap = Math.min(3, size * .15);
+      powers.forEach((row, r) => row.forEach((power, c) => {
+        const x = left + c * size, y = top + r * size;
+        const position = Math.max(0, Math.min(1, power / Math.max(maxPower, 1e-9))) * 2;
+        const index = Math.min(1, Math.floor(position));
+        const fraction = position - index;
+        const color = colors[index].map((value, channel) => Math.round(value + (colors[index + 1][channel] - value) * fraction));
+        ctx.fillStyle = showPower ? `rgb(${color.join(",")})` : statusColors[categories[c][r]];
+        ctx.fillRect(x + gap / 2, y + gap / 2, size - gap, size - gap);
+        if (cells[c * rows + r]?.bypassed) {
+          const pad = size * .28;
+          ctx.strokeStyle = showPower && power > maxPower * .45 ? "#49300e" : "#fff";
+          ctx.lineWidth = Math.max(1, size * .08);
+          ctx.beginPath(); ctx.moveTo(x + pad, y + pad); ctx.lineTo(x + size - pad, y + size - pad);
+          ctx.moveTo(x + size - pad, y + pad); ctx.lineTo(x + pad, y + size - pad); ctx.stroke();
+        }
+      }));
+    }
+
+    function renderSnapshot(snapshot) {
+      if (!snapshot) return;
+      state.rawLight = cloneData(snapshot.rawLight);
+      state.rawDisplay = cloneData(snapshot.rawDisplay);
+      state.light = cloneData(snapshot.light || snapshot.rawLight);
+      state.best = cloneData(snapshot.best);
+      drawHeatmap($("rawCanvas"), rawVisualMatrix());
+      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
+      drawHeatmap($("resultCanvas"), state.best?.matrix || null);
+      renderResultMatrix(state.best);
+      renderGroupTable(state.best);
+      updateTopMetrics(snapshot.raw, snapshot.raw, snapshot.result);
+      renderAm0Overview();
+      updatePresentationStatus();
+    }
+
+    function appendHistory(rawPower, turbPower, resultPower) {
+      const raw = rawPower ?? 0;
+      const result = resultPower ?? turbPower ?? raw;
+      state.history.push({
+        t: state.frame++,
+        raw,
+        result,
+        rawLight: cloneData(state.rawLight),
+        rawDisplay: cloneData(state.rawDisplay),
+        light: cloneData(state.light),
+        best: cloneData(state.best)
+      });
+      state.cumulativePowerDelta += result - raw;
+      if (state.history.length > 30) {
+        state.history.shift();
+        if (state.selectedHistoryIndex != null) state.selectedHistoryIndex = Math.max(0, state.selectedHistoryIndex - 1);
+      }
+      if (!state.paused) state.selectedHistoryIndex = null;
+      updateTotalPowerDelta();
+      updatePresentationStatus();
+      drawPowerChart(rawPower, turbPower, resultPower);
+    }
+
+    function refreshEnabled() {
+      const laser = sourceMode() === "laser";
+      controls.turbulence.disabled = !laser;
+      if (!laser) controls.turbulence.checked = false;
+      controls.items.disabled = false;
+      controls.shadow.disabled = laser;
+      if (laser) controls.shadow.checked = false;
+      const turbulenceEditable = laser && controls.turbulence.checked;
+      ["cn2", "cn2Value", "wavelengthNm", "wavelengthNmValue", "beamWaistMm", "beamWaistMmValue", "propagationDistance", "propagationDistanceValue"].forEach(id => {
+        if (controls[id]) controls[id].disabled = !turbulenceEditable;
+      });
+      document.querySelectorAll("[data-turbulence-preset]").forEach(button => {
+        button.disabled = !laser;
+      });
+      const shadeEnabled = !laser && controls.shadow.checked;
+      ["damagePositionRandom", "damageRandom", "shadeSize", "shadeSizeValue", "shadeRatio1", "shadeRatio1Value", "shadeRatio2", "shadeRatio2Value", "shadeRatio3", "shadeRatio3Value", "baseLimit", "baseLimitValue", "shadeLimit1", "shadeLimit1Value", "shadeLimit2", "shadeLimit2Value", "shadeLimit3", "shadeLimit3Value", "bypassThreshold", "bypassThresholdValue"].forEach(id => {
+        if (controls[id]) controls[id].disabled = !shadeEnabled;
+      });
+      document.querySelectorAll("[data-shade-preset]").forEach(button => {
+        button.disabled = laser;
+      });
+      document.querySelector(".laser-row")?.classList.toggle("is-inactive", !laser);
+      document.querySelector(".solar-row")?.classList.toggle("is-inactive", laser);
+    }
+
+    function jitterMatrix(matrix, amount = 0.03) {
+      if (!matrix) return matrix;
+      const total = sumMatrix(matrix);
+      const varied = matrix.map(row => row.map(value => Math.max(0, value * (1 + (Math.random() * 2 - 1) * amount))));
+      return normalizeToPower(varied, total);
+    }
+
+    function buildLaserDisplay(rows, cols, power) {
+      const sampled = gaussianLightSquare(rows, cols, power);
+      let display = sampled.display;
+      if (state.frame > 0) display = jitterMatrix(display, 0.045);
+      if (controls.turbulence.checked) {
+        if (rows > 48 || cols > 48) setNotice("湍流模拟在较大矩阵上会自动使用轻量近似。");
+        display = applyTurbulence(display);
+      }
+      const normalized = normalizeDisplayCrop(display, sampled.bounds, power);
+      return { light: normalized.active, display: { matrix: normalized.display, bounds: sampled.bounds } };
+    }
+
+    function dynamicStep() {
+      if (state.paused || state.recomputeTimer) return;
+      // AM0 conditions stay fixed between explicit sample/parameter changes.
+      if (sourceMode() === "solar" && state.currentPower) {
+        appendHistory(state.currentPower.raw, state.currentPower.raw, state.currentPower.result);
+        return;
+      }
+      const totalCells = clampInt(controls.groups.value, 2, 80) * clampInt(controls.items.value, 2, 80);
+      if (totalCells > 900) return;
+      generate();
+      optimize();
+    }
+
+    function startDynamicOutput() {
+      if (typeof setInterval !== "function") return;
+      if (state.liveTimer) clearInterval(state.liveTimer);
+      state.liveTimer = setInterval(dynamicStep, 3500);
+    }
+
+    function generate() {
+      setNotice("");
+      const groups = clampInt(controls.groups.value, 2, 80);
+      const items = clampInt(controls.items.value, 2, 80);
+      controls.groups.value = groups;
+      controls.items.value = items;
+      const laserMode = sourceMode() === "laser";
+      if ($("rawMatrixTitle")) $("rawMatrixTitle").textContent = laserMode
+        ? `原始串并联阵列光斑分布（横向 ${groups} 个并联组 × 纵向每组 ${items} 个串联通道，青色框为电池片）`
+        : `原始串并联阵列输出分布（横向 ${groups} 个并联组 × 纵向每组 ${items} 个串联通道）`;
+      const power = Math.max(1, Number(controls.power.value) || 100);
+      let dynamicLight;
+      state.rawDisplay = null;
+      if (laserMode) {
+        const laser = buildLaserDisplay(groups, items, power);
+        dynamicLight = laser.light;
+        state.rawDisplay = laser.display;
+      } else {
+        const light = solarLight(groups, items, power);
+        dynamicLight = light;
+      }
+      state.rawLight = dynamicLight;
+      state.light = dynamicLight;
+      state.best = null;
+      drawHeatmap($("rawCanvas"), rawVisualMatrix());
+      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
+      drawHeatmap($("resultCanvas"), null);
+      renderResultMatrix(null);
+      const rawP = matrixPower(dynamicLight);
+      $("rawPower").value = `${rawP.toFixed(1)} W`;
+      if ($("method")) $("method").value = "--";
+      if ($("resultPower")) $("resultPower").value = "--";
+      renderGroupTable(null);
+      updateTopMetrics(rawP, 0, 0);
+    }
+
+    function optimize() {
+      if (!state.light) generate();
+      const best = chooseBestOptimization(state.light);
+      state.best = best;
+      drawHeatmap($("resultCanvas"), best.matrix);
+      renderResultMatrix(best);
+      if ($("method")) $("method").value = best.name;
+      if ($("resultPower")) $("resultPower").value = `${best.power.toFixed(1)} W`;
+      renderGroupTable(best);
+      const rawP = matrixPower(state.rawLight || state.light);
+      state.currentPower = { raw: rawP, result: best.power };
+      updateTopMetrics(rawP, rawP, best.power);
+      appendHistory(rawP, rawP, best.power);
+      renderAm0Overview();
+    }
+
+    function resetHistory() {
+      state.history = [];
+      state.cumulativePowerDelta = 0;
+      state.frame = 0;
+      state.selectedHistoryIndex = null;
+    }
+
+    function recomputeFromPresetChange() {
+      if (state.recomputeTimer) clearTimeout(state.recomputeTimer);
+      state.recomputeTimer = null;
+      resetHistory();
+      generate();
+      optimize();
+    }
+
+    function scheduleRecompute(delay = 260) {
+      if (state.recomputeTimer) clearTimeout(state.recomputeTimer);
+      state.recomputeTimer = setTimeout(() => {
+        state.recomputeTimer = null;
+        recomputeFromPresetChange();
+      }, delay);
+    }
+
+    function pageListFor(el) {
+      return String(el?.dataset?.pageSection || "").split(/\s+/).filter(Boolean);
+    }
+
+    function refreshCurrentPageView() {
+      renderAm0Overview();
+      drawHeatmap($("rawCanvas"), rawVisualMatrix());
+      drawHeatmap($("resultCanvas"), state.best?.matrix || null);
+      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
+      renderResultMatrix(state.best);
+      renderGroupTable(state.best);
+      drawPowerChart(
+        matrixPower(state.rawLight),
+        matrixPower(state.rawLight),
+        state.best?.power || 0
+      );
+    }
+
+    function setActivePage(page) {
+      state.currentPage = String(page || "1");
+      document.querySelectorAll("[data-page-target]").forEach(button => {
+        const active = button.dataset.pageTarget === state.currentPage;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      document.querySelectorAll(".page-section, .page-subsection").forEach(section => {
+        section.classList.toggle("is-page-active", pageListFor(section).includes(state.currentPage));
+      });
+      refreshCurrentPageView();
+    }
+
+    function formatForStep(value, step) {
+      const decimals = String(step || "1").includes(".") ? String(step).split(".")[1].length : 0;
+      return Number(value).toFixed(decimals);
+    }
+
+    function setRangePair(rangeId, inputId, value) {
+      const range = controls[rangeId];
+      const input = controls[inputId];
+      if (!range || !input) return;
+      const formatted = formatForStep(value, range.step);
+      range.value = formatted;
+      input.value = formatted;
+    }
+
+    function shadeRatioTotal() {
+      return ["shadeRatio1", "shadeRatio2", "shadeRatio3"].reduce((sum, id) => sum + (Number(controls[id]?.value) || 0), 0);
+    }
+
+    function syncShadeSizeToRatioTotal() {
+      setRangePair("shadeSize", "shadeSizeValue", Math.max(0, 1 - Math.min(1, shadeRatioTotal())));
+    }
+
+    function constrainShadeRatio(activeId) {
+      const ratioIds = ["shadeRatio1", "shadeRatio2", "shadeRatio3"];
+      if (!ratioIds.includes(activeId)) return;
+      const otherTotal = ratioIds
+        .filter(id => id !== activeId)
+        .reduce((sum, id) => sum + (Number(controls[id]?.value) || 0), 0);
+      const maxAllowed = Math.max(0, 1 - otherTotal);
+      const next = Math.min(Number(controls[activeId].value) || 0, maxAllowed);
+      setRangePair(activeId, `${activeId}Value`, next);
+    }
+
+    function scaleShadeRatiosToSize() {
+      const unshaded = Math.max(0, Math.min(1, Number(controls.shadeSize.value) || 0));
+      const target = 1 - unshaded;
+      const total = shadeRatioTotal();
+      if (total <= 1e-9) {
+        setRangePair("shadeRatio1", "shadeRatio1Value", target);
+        setRangePair("shadeRatio2", "shadeRatio2Value", 0);
+        setRangePair("shadeRatio3", "shadeRatio3Value", 0);
+        return;
+      }
+      const scale = target / total;
+      setRangePair("shadeRatio1", "shadeRatio1Value", Math.min(1, (Number(controls.shadeRatio1.value) || 0) * scale));
+      setRangePair("shadeRatio2", "shadeRatio2Value", Math.min(1, (Number(controls.shadeRatio2.value) || 0) * scale));
+      setRangePair("shadeRatio3", "shadeRatio3Value", Math.min(1, (Number(controls.shadeRatio3.value) || 0) * scale));
+    }
+
+    function setTurbulencePresetActive(name) {
+      document.querySelectorAll("[data-turbulence-preset]").forEach(button => {
+        button.classList.toggle("active", button.dataset.turbulencePreset === name);
+      });
+    }
+
+    function setShadePresetActive(name) {
+      document.querySelectorAll("[data-shade-preset]").forEach(button => {
+        button.classList.toggle("active", button.dataset.shadePreset === name);
+      });
+    }
+
+    function applyTurbulencePreset(name) {
+      const preset = turbulencePresets[name];
+      if (!preset) return;
+      document.querySelectorAll("input[name='source']").forEach(input => {
+        input.checked = input.value === "laser";
+      });
+      controls.turbulence.checked = true;
+      setRangePair("cn2", "cn2Value", preset.cn2);
+      setRangePair("beamWaistMm", "beamWaistMmValue", preset.beamWaistMm);
+      setRangePair("propagationDistance", "propagationDistanceValue", preset.propagationDistance);
+      setTurbulencePresetActive(name);
+      refreshEnabled();
+      recomputeFromPresetChange();
+    }
+
+    function applyShadePreset(name) {
+      const preset = shadePresets[name];
+      if (!preset) return;
+      document.querySelectorAll("input[name='source']").forEach(input => {
+        input.checked = input.value === "solar";
+      });
+      controls.shadow.checked = true;
+      setRangePair("shadeSize", "shadeSizeValue", preset.shadeSize);
+      setRangePair("baseLimit", "baseLimitValue", preset.baseLimit);
+      setRangePair("shadeRatio1", "shadeRatio1Value", preset.shadeRatio1);
+      setRangePair("shadeRatio2", "shadeRatio2Value", preset.shadeRatio2);
+      setRangePair("shadeRatio3", "shadeRatio3Value", preset.shadeRatio3);
+      setRangePair("shadeLimit1", "shadeLimit1Value", preset.shadeLimit1);
+      setRangePair("shadeLimit2", "shadeLimit2Value", preset.shadeLimit2);
+      setRangePair("shadeLimit3", "shadeLimit3Value", preset.shadeLimit3);
+      setShadePresetActive(name);
+      refreshEnabled();
+      recomputeFromPresetChange();
+    }
+
+    function syncRangePair(rangeId, inputId) {
+      const range = controls[rangeId];
+      const input = controls[inputId];
+      if (!range || !input) return;
+      const clampValue = value => {
+        const min = Number(range.min);
+        const max = Number(range.max);
+        const next = Math.max(min, Math.min(max, Number(value) || 0));
+        return formatForStep(next, range.step);
+      };
+      range.addEventListener("input", () => {
+        input.value = clampValue(range.value);
+        setTurbulencePresetActive("");
+        if (rangeId.startsWith("shade") || rangeId === "baseLimit") setShadePresetActive("");
+        if (["shadeRatio1", "shadeRatio2", "shadeRatio3"].includes(rangeId)) {
+          constrainShadeRatio(rangeId);
+          syncShadeSizeToRatioTotal();
+        }
+        if (rangeId === "shadeSize") scaleShadeRatiosToSize();
+        scheduleRecompute();
+      });
+      input.addEventListener("input", () => {
+        const next = clampValue(input.value);
+        input.value = next;
+        range.value = next;
+        setTurbulencePresetActive("");
+        if (rangeId.startsWith("shade") || rangeId === "baseLimit") setShadePresetActive("");
+        if (["shadeRatio1", "shadeRatio2", "shadeRatio3"].includes(rangeId)) {
+          constrainShadeRatio(rangeId);
+          syncShadeSizeToRatioTotal();
+        }
+        if (rangeId === "shadeSize") scaleShadeRatiosToSize();
+        scheduleRecompute();
+      });
+    }
+
+    function syncLiveRange(id) {
+      const range = controls[id];
+      if (!range) return;
+      range.addEventListener("input", () => scheduleRecompute());
+    }
+
+    function bindNumberRecompute(id) {
+      const input = controls[id];
+      if (!input) return;
+      input.addEventListener("input", () => {
+        if (input.value === "") return;
+        const min = Number(input.min);
+        const value = Number(input.value);
+        if (Number.isFinite(min) && value < min) return;
+        scheduleRecompute(900);
+      });
+      input.addEventListener("change", recomputeFromPresetChange);
+    }
+
+    function setPaused(next) {
+      state.paused = next;
+      if (state.paused && state.history.length) {
+        state.selectedHistoryIndex = state.history.length - 1;
+        renderSnapshot(state.history[state.selectedHistoryIndex]);
+      } else if (!state.paused) {
+        state.selectedHistoryIndex = null;
+        drawPowerChart(
+          matrixPower(state.rawLight),
+          matrixPower(state.rawLight),
+          state.best?.power || 0
+        );
+      }
+      if (!controls.pauseUpdate) return;
+      controls.pauseUpdate.classList.toggle("active", state.paused);
+      controls.pauseUpdate.setAttribute("aria-pressed", state.paused ? "true" : "false");
+      controls.pauseUpdate.textContent = state.paused ? "继续" : "暂停";
+      updatePresentationStatus();
+    }
+
+    function chartIndexAt(x) {
+      const { left, chartW } = state.chartGeometry;
+      const ratio = Math.max(0, Math.min(1, (x - left) / Math.max(chartW, 1)));
+      return Math.round(ratio * (state.history.length - 1));
+    }
+
+    function updatePowerChartHover() {
+      const tooltip = $("powerChartTooltip");
+      const cursor = $("powerChartCursor");
+      if (!tooltip || !cursor) return;
+      tooltip.hidden = cursor.hidden = true;
+      const geometry = state.chartGeometry;
+      if (!state.chartPointer || !geometry || !state.history.length) return;
+      const rect = $("powerChart").getBoundingClientRect();
+      const x = state.chartPointer.x - rect.left;
+      const y = state.chartPointer.y - rect.top;
+      const { left, top, chartW, chartH } = geometry;
+      if (x < left - 4 || x > left + chartW + 4 || y < top - 4 || y > top + chartH + 4) return;
+
+      const index = chartIndexAt(x);
+      const frame = state.history[index];
+      const fraction = state.history.length === 1 ? 1 : index / (state.history.length - 1);
+      const pointX = left + fraction * chartW;
+      $("tooltipFrame").textContent = `时序 ${frame.t + 1}`;
+      $("tooltipRaw").textContent = `${frame.raw.toFixed(2)} W`;
+      $("tooltipResult").textContent = `${frame.result.toFixed(2)} W`;
+      const delta = Number((frame.result - frame.raw).toFixed(2));
+      const deltaValue = $("tooltipDelta");
+      deltaValue.textContent = `${delta > 0 ? "+" : ""}${delta.toFixed(2)} W`;
+      deltaValue.dataset.sign = String(Math.sign(delta));
+      cursor.style.left = `${pointX}px`;
+      cursor.style.top = `${top}px`;
+      cursor.style.height = `${chartH}px`;
+      tooltip.hidden = cursor.hidden = false;
+      const width = tooltip.offsetWidth;
+      const preferredLeft = pointX + 12 + width <= rect.width - 8 ? pointX + 12 : pointX - 12 - width;
+      tooltip.style.left = `${Math.max(8, Math.min(rect.width - width - 8, preferredLeft))}px`;
+      tooltip.style.top = `${Math.max(8, Math.min(rect.height - tooltip.offsetHeight - 8, y + 12))}px`;
+    }
+
+    function selectHistoryFromChart(event) {
+      if (!state.paused || !state.history.length || !state.chartGeometry) return;
+      const rect = $("powerChart").getBoundingClientRect();
+      const index = chartIndexAt(event.clientX - rect.left);
+      state.selectedHistoryIndex = index;
+      renderSnapshot(state.history[index]);
+    }
+
+    document.querySelectorAll("input[name='source']").forEach(input => input.addEventListener("change", () => {
+      resetHistory();
+      refreshEnabled();
+      generate();
+      optimize();
+    }));
+    controls.shadow.addEventListener("change", () => {
+      refreshEnabled();
+      recomputeFromPresetChange();
+    });
+    controls.damagePositionRandom?.addEventListener("change", recomputeFromPresetChange);
+    controls.damageRandom?.addEventListener("change", recomputeFromPresetChange);
+    controls.turbulence.addEventListener("change", () => {
+      resetHistory();
+      refreshEnabled();
+      generate();
+      optimize();
+    });
+    document.querySelectorAll("[data-turbulence-preset]").forEach(button => {
+      button.addEventListener("click", () => applyTurbulencePreset(button.dataset.turbulencePreset));
+    });
+    document.querySelectorAll("[data-shade-preset]").forEach(button => {
+      button.addEventListener("click", () => applyShadePreset(button.dataset.shadePreset));
+    });
+    document.querySelectorAll("[data-page-target]").forEach(button => {
+      button.addEventListener("click", () => setActivePage(button.dataset.pageTarget));
+    });
+    syncRangePair("cn2", "cn2Value");
+    syncRangePair("wavelengthNm", "wavelengthNmValue");
+    syncRangePair("beamWaistMm", "beamWaistMmValue");
+    syncRangePair("propagationDistance", "propagationDistanceValue");
+    syncRangePair("shadeSize", "shadeSizeValue");
+    syncRangePair("baseLimit", "baseLimitValue");
+    syncRangePair("shadeRatio1", "shadeRatio1Value");
+    syncRangePair("shadeRatio2", "shadeRatio2Value");
+    syncRangePair("shadeRatio3", "shadeRatio3Value");
+    syncRangePair("shadeLimit1", "shadeLimit1Value");
+    syncRangePair("shadeLimit2", "shadeLimit2Value");
+    syncRangePair("shadeLimit3", "shadeLimit3Value");
+    syncRangePair("bypassThreshold", "bypassThresholdValue");
+    ["groups", "items", "power", "optGroups"].forEach(bindNumberRecompute);
+    controls.pauseUpdate?.addEventListener("click", () => setPaused(!state.paused));
+    document.querySelectorAll('input[name="distributionView"]').forEach(input => {
+      input.addEventListener("change", renderAm0Overview);
+    });
+    $("resampleDamage").addEventListener("click", () => {
+      if (controls.damagePositionRandom.checked) state.damagePattern = null;
+      state.solarSample = null;
+      recomputeFromPresetChange();
+    });
+    $("presentationToggle").addEventListener("click", () => {
+      const active = document.body.classList.toggle("presentation-mode");
+      $("presentationToggle").textContent = active ? "展开参数" : "收起参数";
+      $("presentationToggle").setAttribute("aria-pressed", String(active));
+      refreshCurrentPageView();
+    });
+    $("fullscreenToggle").addEventListener("click", async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await document.documentElement.requestFullscreen();
+      } catch { $("fullscreenToggle").textContent = "全屏不可用"; }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      $("fullscreenToggle").textContent = document.fullscreenElement ? "退出全屏" : "全屏";
+      refreshCurrentPageView();
+    });
+    $("powerChart")?.addEventListener("click", selectHistoryFromChart);
+    $("powerChart")?.addEventListener("pointermove", event => {
+      state.chartPointer = { x: event.clientX, y: event.clientY };
+      updatePowerChartHover();
+    });
+    $("powerChart")?.addEventListener("pointerleave", () => {
+      state.chartPointer = null;
+      updatePowerChartHover();
+    });
+    ["showCellId", "showGroupName", "showCellPower"].forEach(id => {
+      $(id)?.addEventListener("change", () => renderResultMatrix(state.best));
+    });
+    ["showRawCellId", "showRawGroupName", "showRawCellPower"].forEach(id => {
+      $(id)?.addEventListener("change", () => renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions()));
+    });
+    window.addEventListener("resize", () => {
+      renderAm0Overview();
+      drawHeatmap($("rawCanvas"), rawVisualMatrix());
+      drawHeatmap($("resultCanvas"), state.best?.matrix || null);
+      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
+      renderResultMatrix(state.best);
+      drawPowerChart(
+        matrixPower(state.rawLight),
+        matrixPower(state.rawLight),
+        state.best?.power || 0
+      );
+    });
+
+    refreshEnabled();
+    generate();
+    optimize();
+    setActivePage("1");
+    startDynamicOutput();
+  </script>
+</body>
+</html>
+
+

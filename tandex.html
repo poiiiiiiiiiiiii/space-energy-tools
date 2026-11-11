@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TandEx 网页计算器</title>
+  <script src="./tandex-assets/plotly-basic.min.js"></script>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #fff;
+      --text: #1f2a37;
+      --muted: #6b7280;
+      --primary: #2b6cb0;
+      --primary-dark: #245999;
+      --border: #e5e7eb;
+    }
+    body { font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+    header { background: #0f172a; color: #fff; padding: 20px 24px; }
+    header h1 { margin: 0; font-size: 22px; }
+    header p { margin: 6px 0 0; color: #cbd5e1; font-size: 13px; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); padding: 18px; border: 1px solid var(--border); }
+    .card h2 { margin: 0 0 12px; font-size: 18px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 12px; color: var(--muted); }
+    input, select { padding: 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; width: 100%; box-sizing: border-box; }
+    input[type="checkbox"] { width: auto; padding: 0; }
+    .switch-row { display: flex; align-items: center; gap: 10px; }
+    .switch-label { font-size: 12px; color: var(--muted); }
+    .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #ef4444; transition: 0.2s; border-radius: 999px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; top: 3px; background-color: #fff; transition: 0.2s; border-radius: 50%; }
+    .switch input:checked + .slider { background-color: #16a34a; }
+    .switch input:checked + .slider:before { transform: translateX(22px); }
+    .actions { display: flex; gap: 10px; align-items: center; }
+    button { padding: 10px 12px; border: 0; border-radius: 8px; background: var(--primary); color: white; cursor: pointer; font-size: 13px; }
+    button:hover { background: var(--primary-dark); }
+    .result { margin-top: 12px; font-weight: 600; font-size: 13px; color: #0f172a; white-space: pre-wrap; }
+    .note { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    .full-width { grid-column: 1 / -1; }
+    .status { font-size: 12px; color: var(--muted); }
+    .section-title { font-size: 14px; margin: 8px 0; color: var(--text); font-weight: 600; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-size: 12px; }
+    .chart { width: 100%; height: 360px; border: 1px dashed var(--border); border-radius: 8px; margin-top: 12px; background: #fafafa; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TandEx 网页计算器</h1>
+    <p>包含快速计算与“完整版”光学+电学一体计算（TMM + 电路仿真）</p>
+  </header>
+
+  <div class="container">
+    <div class="grid">
+      <div class="card">
+        <h2>快速计算</h2>
+        <div class="section-title">ITO 串联电阻 Rs</div>
+        <div class="row">
+          <div class="field">
+            <label>ITO 方块电阻 R_sheet (Ω/□)</label>
+            <input id="rs_rsheet" type="number" value="10" step="0.1" />
+          </div>
+          <div class="field">
+            <label>电极间距 l (cm)</label>
+            <input id="rs_l" type="number" value="2" step="0.01" />
+          </div>
+          <div class="field">
+            <label>单元宽度 w (cm)</label>
+            <input id="rs_w" type="number" value="1" step="0.01" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="rs_btn">计算 Rs</button>
+          <span class="status" id="rs_status"></span>
+        </div>
+        <div id="rs_result" class="result"></div>
+
+        <div class="section-title">Si 体寿命</div>
+        <div class="row">
+          <div class="field">
+            <label>掺杂浓度 Ndop (cm^-3)</label>
+            <input id="si_ndop" type="number" value="5e14" step="1e14" />
+          </div>
+          <div class="field">
+            <label>过剩载流子 Δn (cm^-3)</label>
+            <input id="si_dn" type="number" value="1e15" step="1e14" />
+          </div>
+          <div class="field">
+            <label>硅片厚度 waferT (μm)</label>
+            <input id="si_waf" type="number" value="190" step="1" />
+          </div>
+          <div class="field">
+            <label>本征载流子浓度 ni (cm^-3)</label>
+            <input id="si_ni" type="number" value="9.65e9" step="1e9" />
+          </div>
+          <div class="field">
+            <label>温度 Temp (K)</label>
+            <input id="si_temp" type="number" value="300" step="1" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="si_btn">计算寿命</button>
+          <span class="status" id="si_status"></span>
+        </div>
+        <div id="si_result" class="result"></div>
+        <div class="note">输出: t_Aug, t_Rad, sqrt(nieff), p0eff, n0eff, n_deff, p_deff</div>
+      </div>
+
+      <div class="card full-width">
+        <h2>完整版计算 <span class="pill">TMM + 电路仿真</span></h2>
+        <div class="section-title">关键材料与几何参数</div>
+        <div class="row">
+          <div class="field">
+            <label>钙钛矿数据集（CSV）</label>
+            <select id="full_pvk_dataset"></select>
+          </div>
+          <div class="field">
+            <label>PVK EQE 数据集（CSV）</label>
+            <select id="full_pvk_eqe"></select>
+          </div>
+          <div class="field">
+            <label>顶部透明电极透过率（CSV）</label>
+            <select id="full_pvk_tx_top"></select>
+          </div>
+          <div class="field">
+            <label>中间 ITO 透过率（CSV）</label>
+            <select id="full_pvk_tx_mid"></select>
+          </div>
+          <div class="field">
+            <label>底部透明电极透过率（CSV）</label>
+            <select id="full_pvk_tx_bottom"></select>
+            <div class="note">底部透明电极不参与光谱传输计算（仅保留显示）。</div>
+          </div>
+          <div class="field">
+            <label>顶部透明电极厚度 (nm)</label>
+            <input id="full_tce_top_thick" type="number" value="40" step="1" />
+          </div>
+          <div class="field">
+            <label>底部透明电极厚度 (nm)</label>
+            <input id="full_tce_bottom_thick" type="number" value="40" step="1" />
+          </div>
+          <div class="field">
+            <label>EQE 参考厚度 (nm)</label>
+            <input id="full_pvk_eqe_thick_ref" type="number" value="300" step="10" />
+            <div class="note">填写该 EQE 光谱对应器件的吸收层实际厚度（测量 EQE 时的厚度）。仅在厚度未知时再用估计值。</div>
+          </div>
+          <div class="field">
+            <label>钙钛矿带隙 EgapP (eV)</label>
+            <input id="full_EgapP" type="number" value="1.7" step="0.01" />
+          </div>
+          <div class="field">
+            <label>钙钛矿厚度 (nm)</label>
+            <input id="full_pvk_thick" type="number" value="850" step="10" />
+          </div>
+          <div class="field">
+            <label>硅片厚度 (μm)</label>
+            <input id="full_si_waf" type="number" value="190" step="1" />
+          </div>
+          <div class="field">
+            <label>中间 ITO 厚度 (nm)</label>
+            <input id="full_tce_thick" type="number" value="40" step="1" />
+            <div class="note">ITO 厚度会影响光学透过率；勾选“考虑串联电阻”时，也会影响电学串联电阻。</div>
+          </div>
+          <div class="field">
+            <label>ITO 电阻率 (Ω·cm)</label>
+            <input id="full_tce_rho" type="number" value="0.00042" step="1e-5" />
+          </div>
+          <div class="field">
+            <label>顶部透明电极阻值 (Ω/sq)</label>
+            <input id="full_tce_top_rsheet" type="number" value="0" step="1" />
+          </div>
+          <div class="field">
+            <label>底部透明电极阻值 (Ω/sq)</label>
+            <input id="full_tce_bottom_rsheet" type="number" value="0" step="1" />
+          </div>
+        </div>
+
+        <div class="section-title">电学参数</div>
+        <div class="row">
+          <div class="field">
+            <label>钙钛矿并联电阻 Rsh_pvk (Ω·cm²)</label>
+            <input id="full_rsh_pvk" type="number" value="200000" step="1000" />
+          </div>
+          <div class="field">
+            <label>J01d_pvk (A/cm²)</label>
+            <input id="full_j01d" type="number" value="8e-24" step="1e-24" />
+            <div class="note">钙钛矿扩散暗电流（近似 n=1 通道）；增大通常会降低 Voc。</div>
+          </div>
+          <div class="field">
+            <label>J02_pvk (A/cm²)</label>
+            <input id="full_j02" type="number" value="2.1e-13" step="1e-14" />
+            <div class="note">钙钛矿高理想因子暗电流（常对应 n≈2 复合通道）；偏大时会拉低 FF 与 Voc。</div>
+          </div>
+          <div class="field">
+            <label>J0def_pvk (A/cm²)</label>
+            <input id="full_j0def" type="number" value="3e-23" step="1e-24" />
+            <div class="note">缺陷辅助复合暗电流强度（与 Rdef_pvk 一起决定缺陷通道损耗）。</div>
+          </div>
+          <div class="field">
+            <label>PVK 缺陷电阻 Rdef_pvk (Ω·cm²)</label>
+            <input id="full_rdef" type="number" value="12" step="1" />
+            <div class="note">缺陷支路等效电阻；越小表示缺陷通道越“导通”，通常会增加复合损耗并降低 FF/Voc。</div>
+          </div>
+          <div class="field">
+            <label>硅并联电阻 Rsh_Si (Ω·cm²)</label>
+            <input id="full_rsh_si" type="number" value="50000" step="1000" />
+          </div>
+          <div class="field">
+            <label>本征载流子浓度 ni (cm^-3)</label>
+            <input id="full_ni" type="number" value="9.65e9" step="1e8" />
+          </div>
+          <div class="field">
+            <label>Si 缺陷理想因子 n_def</label>
+            <input id="full_n_def" type="number" value="1" step="0.1" />
+            <div class="note">缺陷复合通道的理想因子，决定该通道电流随电压上升的快慢（常见约 1–2）。</div>
+          </div>
+          <div class="field">
+            <label>J0n_Si (A/cm²)</label>
+            <input id="full_j0n_si" type="number" value="2e-15" step="1e-16" />
+            <div class="note">硅子电池非辐射/缺陷相关暗电流参数；增大通常会降低硅子电池 Voc。</div>
+          </div>
+          <div class="field">
+            <label>内部串联电阻 RserInt (Ω·cm²)</label>
+            <input id="full_rserint" type="number" value="1.5047" step="0.01" />
+          </div>
+          <div class="field">
+            <div class="switch-row">
+              <span class="switch-label">考虑串联电阻</span>
+              <label class="switch">
+                <input id="full_include_rser" type="checkbox" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="note">关闭此项时，ITO 电阻率/厚度对电学结果（FF、Voc）影响会被忽略。</div>
+          </div>
+        </div>
+
+        <div class="section-title">扫描与网格</div>
+        <div class="row">
+          <div class="field">
+            <label>单元宽度 w (cm)</label>
+            <input id="full_w" type="number" value="0.2" step="0.01" />
+          </div>
+          <div class="field">
+            <label>电极宽度 d (cm)</label>
+            <input id="full_d" type="number" value="0.002" step="0.0001" />
+          </div>
+          <div class="field">
+            <label>电极间距最小值 l_min (cm)</label>
+            <input id="full_l_min" type="number" value="0.02" step="0.01" />
+          </div>
+          <div class="field">
+            <label>电极间距最大值 l_max (cm)</label>
+            <input id="full_l_max" type="number" value="0.8" step="0.01" />
+          </div>
+          <div class="field">
+            <label>电极间距采样点 l_points</label>
+            <input id="full_l_points" type="number" value="100" step="1" />
+          </div>
+          <div class="field">
+            <label>电压最小值 V_min (V)</label>
+            <input id="full_v_min" type="number" value="-0.05" step="0.01" />
+          </div>
+          <div class="field">
+            <label>电压最大值 V_max (V)</label>
+            <input id="full_v_max" type="number" value="2.2" step="0.01" />
+          </div>
+          <div class="field">
+            <label>电压采样点 V_points</label>
+            <input id="full_v_points" type="number" value="100" step="1" />
+          </div>
+          <div class="field">
+            <label>波长起始值 λ_start (nm)</label>
+            <input id="full_lambda_start" type="number" value="250" step="5" />
+          </div>
+          <div class="field">
+            <label>波长终止值 λ_stop (nm)</label>
+            <input id="full_lambda_stop" type="number" value="1450" step="5" />
+          </div>
+          <div class="field">
+            <label>波长步长 λ_step (nm)</label>
+            <input id="full_lambda_step" type="number" value="5" step="1" />
+          </div>
+          <div class="field">
+            <label>横向网格步长 x_step (nm)</label>
+            <input id="full_x_step" type="number" value="1" step="0.5" />
+          </div>
+        </div>
+
+        <div class="section-title">导入本地 CSV</div>
+        <div class="row">
+          <div class="field">
+            <label>自定义 EQE CSV</label>
+            <input id="upload_eqe_file" type="file" accept=".csv" />
+            <button id="upload_eqe_btn" type="button">导入 EQE</button>
+          </div>
+          <div class="field">
+            <label>自定义透过率 CSV（可用于顶部/中间ITO/底部）</label>
+            <input id="upload_tx_file" type="file" accept=".csv" />
+            <button id="upload_tx_btn" type="button">导入透过率</button>
+          </div>
+        </div>
+        <div id="upload_result" class="result"></div>
+        <div class="note">EQE 列名示例: lambda_nm, eqe。透过率列名示例: lambda_nm, trans。</div>
+
+        <div class="actions">
+          <button id="full_btn">运行完整版计算</button>
+          <button id="jv_btn">生成 JV 曲线</button>
+          <label style="display:inline-flex;align-items:center;gap:6px;">
+            <input id="jv_show_negative" type="checkbox" />
+            显示负电流
+          </label>
+          <span class="status" id="full_status"></span>
+        </div>
+        <div id="full_result" class="result"></div>
+        <div id="jv_result" class="result"></div>
+        <div id="jv_plot" class="chart"></div>
+        <div class="note"><a href="https://github.com/Oxford-eMat-Lab/TandEx">TandEx 原始模型</a> · <a href="tandex-assets/LICENSE">模型许可</a></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./tandex-assets/client.js"></script>
+  <script>
+    let tempEqeToken = null;
+    let tempTxTopToken = null;
+    let tempTxMidToken = null;
+    let tempTxBottomToken = null;
+
+    async function importCsv(operation, file) {
+      try {
+        return await requestTandex(operation, { filename: file.name, text: await file.text() });
+      } catch (error) {
+        return { error: error.message };
+      }
+    }
+
+    function setStatus(id, msg) {
+      document.getElementById(id).textContent = msg || '';
+    }
+
+    document.getElementById('upload_eqe_btn').addEventListener('click', async () => {
+      const input = document.getElementById('upload_eqe_file');
+      const file = input.files && input.files[0];
+      if (!file) {
+        document.getElementById('upload_result').textContent = '请先选择 EQE CSV 文件';
+        return;
+      }
+      setStatus('full_status', '导入 EQE 中...');
+      const data = await importCsv('upload_eqe', file);
+      setStatus('full_status', '');
+      if (data.error) {
+        document.getElementById('upload_result').textContent = data.error;
+        return;
+      }
+      tempEqeToken = data.token;
+      document.getElementById('full_pvk_eqe').value = '';
+      document.getElementById('upload_result').textContent = `本次会话已导入 EQE：${data.filename}`;
+      input.value = '';
+    });
+
+    document.getElementById('upload_tx_btn').addEventListener('click', async () => {
+      const input = document.getElementById('upload_tx_file');
+      const file = input.files && input.files[0];
+      if (!file) {
+        document.getElementById('upload_result').textContent = '请先选择透过率 CSV 文件';
+        return;
+      }
+      setStatus('full_status', '导入透过率中...');
+      const data = await importCsv('upload_tx', file);
+      setStatus('full_status', '');
+      if (data.error) {
+        document.getElementById('upload_result').textContent = data.error;
+        return;
+      }
+      tempTxTopToken = tempTxMidToken = tempTxBottomToken = data.token;
+      ['full_pvk_tx_top', 'full_pvk_tx_mid', 'full_pvk_tx_bottom'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('upload_result').textContent = `本次会话已导入透过率：${data.filename}`;
+      input.value = '';
+    });
+
+    document.getElementById('full_pvk_eqe').addEventListener('change', () => {
+      tempEqeToken = null;
+    });
+    document.getElementById('full_pvk_tx_top').addEventListener('change', () => {
+      tempTxTopToken = null;
+    });
+    document.getElementById('full_pvk_tx_mid').addEventListener('change', () => {
+      tempTxMidToken = null;
+    });
+    document.getElementById('full_pvk_tx_bottom').addEventListener('change', () => {
+      tempTxBottomToken = null;
+    });
+
+    document.getElementById('rs_btn').addEventListener('click', async () => {
+      setStatus('rs_status', '计算中...');
+      const payload = {
+        R_sheet_TCE: document.getElementById('rs_rsheet').value,
+        l: document.getElementById('rs_l').value,
+        w: document.getElementById('rs_w').value
+      };
+      const data = await requestTandex('rs', payload);
+      setStatus('rs_status', '');
+      if (data.error) {
+        document.getElementById('rs_result').textContent = data.error;
+        return;
+      }
+      document.getElementById('rs_result').textContent = `Rs = ${data.rs.toFixed(6)} Ω·cm²`;
+    });
+
+    document.getElementById('si_btn').addEventListener('click', async () => {
+      setStatus('si_status', '计算中...');
+      const payload = {
+        Ndop: document.getElementById('si_ndop').value,
+        Delta_n: document.getElementById('si_dn').value,
+        waferT: Number(document.getElementById('si_waf').value) * 1e-4,
+        ni: document.getElementById('si_ni').value,
+        Temp: document.getElementById('si_temp').value
+      };
+      const data = await requestTandex('si_lifetime', payload);
+      setStatus('si_status', '');
+      if (data.error) {
+        document.getElementById('si_result').textContent = data.error;
+        return;
+      }
+      document.getElementById('si_result').textContent = `结果: ${data.result.map(v => Number(v).toExponential(3)).join(', ')}`;
+    });
+
+    document.getElementById('full_btn').addEventListener('click', async () => {
+      setStatus('full_status', '计算中...');
+      const payload = {
+        pvk_dataset: document.getElementById('full_pvk_dataset').value,
+        pvk_eqe_dataset: document.getElementById('full_pvk_eqe').value,
+        pvk_eqe_token: tempEqeToken,
+        pvk_tx_top_dataset: document.getElementById('full_pvk_tx_top').value,
+        pvk_tx_mid_dataset: document.getElementById('full_pvk_tx_mid').value,
+        pvk_tx_bottom_dataset: document.getElementById('full_pvk_tx_bottom').value,
+        pvk_tx_top_token: tempTxTopToken,
+        pvk_tx_mid_token: tempTxMidToken,
+        pvk_tx_bottom_token: tempTxBottomToken,
+        TCE_top_thick: Number(document.getElementById('full_tce_top_thick').value) * 1e-7,
+        TCE_bottom_thick: Number(document.getElementById('full_tce_bottom_thick').value) * 1e-7,
+        pvk_eqe_thick_ref: Number(document.getElementById('full_pvk_eqe_thick_ref').value) * 1e-7,
+        EgapP: document.getElementById('full_EgapP').value,
+        pvk_thick: Number(document.getElementById('full_pvk_thick').value) * 1e-7,
+        Si_Waf_thick: Number(document.getElementById('full_si_waf').value) * 1e-4,
+        TCE_thick: Number(document.getElementById('full_tce_thick').value) * 1e-7,
+        TCE_rho: document.getElementById('full_tce_rho').value,
+        TCE_top_rsheet: document.getElementById('full_tce_top_rsheet').value,
+        TCE_bottom_rsheet: document.getElementById('full_tce_bottom_rsheet').value,
+        Rsh_pvk: document.getElementById('full_rsh_pvk').value,
+        J01d_pvk: document.getElementById('full_j01d').value,
+        J02_pvk: document.getElementById('full_j02').value,
+        J0def_pvk: document.getElementById('full_j0def').value,
+        Rdef_pvk: document.getElementById('full_rdef').value,
+        Rsh_Si: document.getElementById('full_rsh_si').value,
+        ni: document.getElementById('full_ni').value,
+        n_def: document.getElementById('full_n_def').value,
+        J0n_Si: document.getElementById('full_j0n_si').value,
+        RserInt: document.getElementById('full_rserint').value,
+        include_rser: document.getElementById('full_include_rser').checked,
+        w: document.getElementById('full_w').value,
+        d: document.getElementById('full_d').value,
+        l_min: document.getElementById('full_l_min').value,
+        l_max: document.getElementById('full_l_max').value,
+        l_points: document.getElementById('full_l_points').value,
+        v_min: document.getElementById('full_v_min').value,
+        v_max: document.getElementById('full_v_max').value,
+        v_points: document.getElementById('full_v_points').value,
+        lambda_start: document.getElementById('full_lambda_start').value,
+        lambda_stop: document.getElementById('full_lambda_stop').value,
+        lambda_step: document.getElementById('full_lambda_step').value,
+        x_step: document.getElementById('full_x_step').value
+      };
+
+      const data = await requestTandex('tandem_full', payload);
+      setStatus('full_status', '');
+      if (data.error) {
+        document.getElementById('full_result').textContent = data.error;
+        return;
+      }
+
+      if (data.mode === '4T') {
+        document.getElementById('full_result').textContent =
+          `模式: 4T（不考虑串联电阻）\n` +
+          `PVK: 效率 ${data.pvk.efficiency.toFixed(2)} % | Jsc ${(data.pvk.Jsc * 1e3).toFixed(3)} mA/cm² | Voc ${data.pvk.Voc.toFixed(4)} V | FF ${(data.pvk.FF * 100).toFixed(2)} %\n` +
+          `底层Si: 效率 ${data.si_bottom.efficiency.toFixed(2)} % | Jsc ${(data.si_bottom.Jsc * 1e3).toFixed(3)} mA/cm² | Voc ${data.si_bottom.Voc.toFixed(4)} V | FF ${(data.si_bottom.FF * 100).toFixed(2)} %\n` +
+          `Si单独同光照(参考): 效率 ${data.si_alone.efficiency.toFixed(2)} % | Jsc ${(data.si_alone.Jsc * 1e3).toFixed(3)} mA/cm² | Voc ${data.si_alone.Voc.toFixed(4)} V | FF ${(data.si_alone.FF * 100).toFixed(2)} %\n` +
+          `Si单独同光照 l_opt: ${(data.si_alone.l_opt || data.l_opt).toFixed(4)} cm\n` +
+          `总效率(PVK+底层Si): ${data.efficiency_total.toFixed(2)} %\n` +
+          `WAT: ${(data.WAT * 100).toFixed(2)} %\n` +
+          `Tx_top(加权): ${(data.Tx_top * 100).toFixed(2)} %\n` +
+          `Tx_mid(加权): ${(data.Tx_mid * 100).toFixed(2)} %\n` +
+          `Tx_bottom(加权): ${(data.Tx_bottom * 100).toFixed(2)} %\n` +
+          `PVK 暗电流(有效): J01d=${Number(data.J01d_pvk_eff).toExponential(3)}, J0def=${Number(data.J0def_pvk_eff).toExponential(3)}, J02=${Number(data.J02_pvk_eff).toExponential(3)}\n` +
+          `PVK 辐射极限估计: Voc(rad)=${Number(data.Voc_pvk_rad).toFixed(4)} V, Jsc=${(Number(data.Jsc_pvk) * 1e3).toFixed(3)} mA/cm²\n` +
+          `说明: 加权Tx = 按 AM1.5G 光谱加权后的平均透过率，反映在太阳光照下的有效透过比例。\n` +
+          `PVK Abs: ${(data.Absorption_PVK * 100).toFixed(2)} %\n` +
+          `Reflection: ${(data.Reflection * 100).toFixed(2)} %\n` +
+          `优化电极距离 l_opt: ${data.l_opt.toFixed(4)} cm`;
+      } else {
+        document.getElementById('full_result').textContent =
+          `模式: 2T（考虑串联电阻）\n` +
+          `说明: 下列 Jsc / Voc / FF / 效率 为 PVK 与 Si 串联后的合计结果。\n` +
+          `效率: ${data.efficiency.toFixed(2)} %\n` +
+          `Jsc: ${(data.Jsc * 1e3).toFixed(3)} mA/cm²\n` +
+          `Voc: ${data.Voc.toFixed(4)} V\n` +
+          `FF: ${(data.FF * 100).toFixed(2)} %\n` +
+          `WAT: ${(data.WAT * 100).toFixed(2)} %\n` +
+          `Tx_top(加权): ${(data.Tx_top * 100).toFixed(2)} %\n` +
+          `Tx_mid(加权): ${(data.Tx_mid * 100).toFixed(2)} %\n` +
+          `Tx_bottom(加权): ${(data.Tx_bottom * 100).toFixed(2)} %\n` +
+          `PVK 暗电流(有效): J01d=${Number(data.J01d_pvk_eff).toExponential(3)}, J0def=${Number(data.J0def_pvk_eff).toExponential(3)}, J02=${Number(data.J02_pvk_eff).toExponential(3)}\n` +
+          `PVK 辐射极限估计: Voc(rad)=${Number(data.Voc_pvk_rad).toFixed(4)} V, Jsc=${(Number(data.Jsc_pvk) * 1e3).toFixed(3)} mA/cm²\n` +
+          `说明: 加权Tx = 按 AM1.5G 光谱加权后的平均透过率，反映在太阳光照下的有效透过比例。\n` +
+          `PVK Abs: ${(data.Absorption_PVK * 100).toFixed(2)} %\n` +
+          `Reflection: ${(data.Reflection * 100).toFixed(2)} %\n` +
+          `优化电极距离 l_opt: ${data.l_opt.toFixed(4)} cm`;
+      }
+    });
+
+    document.getElementById('jv_btn').addEventListener('click', async () => {
+      setStatus('full_status', '生成 JV 中...');
+      const payload = {
+        pvk_dataset: document.getElementById('full_pvk_dataset').value,
+        pvk_eqe_dataset: document.getElementById('full_pvk_eqe').value,
+        pvk_eqe_token: tempEqeToken,
+        pvk_tx_top_dataset: document.getElementById('full_pvk_tx_top').value,
+        pvk_tx_mid_dataset: document.getElementById('full_pvk_tx_mid').value,
+        pvk_tx_bottom_dataset: document.getElementById('full_pvk_tx_bottom').value,
+        pvk_tx_top_token: tempTxTopToken,
+        pvk_tx_mid_token: tempTxMidToken,
+        pvk_tx_bottom_token: tempTxBottomToken,
+        TCE_top_thick: Number(document.getElementById('full_tce_top_thick').value) * 1e-7,
+        TCE_bottom_thick: Number(document.getElementById('full_tce_bottom_thick').value) * 1e-7,
+        pvk_eqe_thick_ref: Number(document.getElementById('full_pvk_eqe_thick_ref').value) * 1e-7,
+        EgapP: document.getElementById('full_EgapP').value,
+        pvk_thick: Number(document.getElementById('full_pvk_thick').value) * 1e-7,
+        Si_Waf_thick: Number(document.getElementById('full_si_waf').value) * 1e-4,
+        TCE_thick: Number(document.getElementById('full_tce_thick').value) * 1e-7,
+        TCE_rho: document.getElementById('full_tce_rho').value,
+        TCE_top_rsheet: document.getElementById('full_tce_top_rsheet').value,
+        TCE_bottom_rsheet: document.getElementById('full_tce_bottom_rsheet').value,
+        Rsh_pvk: document.getElementById('full_rsh_pvk').value,
+        J01d_pvk: document.getElementById('full_j01d').value,
+        J02_pvk: document.getElementById('full_j02').value,
+        J0def_pvk: document.getElementById('full_j0def').value,
+        Rdef_pvk: document.getElementById('full_rdef').value,
+        Rsh_Si: document.getElementById('full_rsh_si').value,
+        ni: document.getElementById('full_ni').value,
+        n_def: document.getElementById('full_n_def').value,
+        J0n_Si: document.getElementById('full_j0n_si').value,
+        RserInt: document.getElementById('full_rserint').value,
+        include_rser: document.getElementById('full_include_rser').checked,
+        w: document.getElementById('full_w').value,
+        d: document.getElementById('full_d').value,
+        l_min: document.getElementById('full_l_min').value,
+        l_max: document.getElementById('full_l_max').value,
+        l_points: document.getElementById('full_l_points').value,
+        v_min: document.getElementById('full_v_min').value,
+        v_max: document.getElementById('full_v_max').value,
+        v_points: document.getElementById('full_v_points').value,
+        lambda_start: document.getElementById('full_lambda_start').value,
+        lambda_stop: document.getElementById('full_lambda_stop').value,
+        lambda_step: document.getElementById('full_lambda_step').value,
+        x_step: document.getElementById('full_x_step').value
+      };
+
+      const data = await requestTandex('tandem_jv', payload);
+      setStatus('full_status', '');
+      if (data.error) {
+        document.getElementById('jv_result').textContent = data.error;
+        return;
+      }
+
+      if (!window.Plotly) {
+        document.getElementById('jv_result').textContent = '绘图库加载失败，请检查 tandex-assets 目录是否完整。';
+        return;
+      }
+
+      let traces = [];
+      let title = 'JV 曲线';
+      const showNegativeCurrent = document.getElementById('jv_show_negative')?.checked ?? true;
+      if (data.mode === '4T' && data.curves) {
+        document.getElementById('jv_result').textContent =
+          `模式: 4T（不考虑串联电阻） | l_opt: ${data.l_opt.toFixed(4)} cm | ` +
+          `PVK效率: ${data.pvk.efficiency.toFixed(2)} % | Si效率: ${data.si_bottom.efficiency.toFixed(2)} % | ` +
+          `总效率: ${data.efficiency_total.toFixed(2)} %`;
+
+        traces = [
+          {
+            x: data.curves.pvk.voltages,
+            y: data.curves.pvk.currents,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'PVK JV',
+            line: { width: 2 }
+          },
+          {
+            x: data.curves.si_bottom.voltages,
+            y: data.curves.si_bottom.currents,
+            type: 'scatter',
+            mode: 'lines',
+            name: '底层Si JV',
+            line: { width: 2 }
+          },
+          {
+            x: data.curves.si_alone.voltages,
+            y: data.curves.si_alone.currents,
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: 'Si单独同光照 JV',
+            line: { width: 2, dash: 'dot' },
+            marker: { size: 4 }
+          }
+        ];
+        title = 'JV 曲线（4T 分项）';
+      } else {
+        document.getElementById('jv_result').textContent =
+          `模式: 2T（考虑串联电阻） | l_opt: ${data.l_opt.toFixed(4)} cm | ` +
+          `效率: ${data.efficiency.toFixed(2)} % | Voc: ${data.Voc.toFixed(4)} V`;
+
+        traces = [{
+          x: data.voltages,
+          y: data.currents,
+          type: 'scatter',
+          mode: 'lines',
+          name: '2T 合计 J-V (mA/cm²)'
+        }];
+      }
+
+      traces = traces
+        .map(t => {
+          if (!Array.isArray(t.x) || !Array.isArray(t.y) || t.x.length !== t.y.length) return null;
+
+          const pts = [];
+          for (let i = 0; i < t.x.length; i++) {
+            const xv = Number(t.x[i]);
+            const yv = Number(t.y[i]);
+            if (!Number.isFinite(xv) || !Number.isFinite(yv)) continue;
+            pts.push([xv, yv]);
+          }
+          if (pts.length < 3) return null;
+
+          const xs = [];
+          const ys = [];
+          for (let i = 0; i < pts.length; i++) {
+            const xv = pts[i][0];
+            const yv = pts[i][1];
+            if (!showNegativeCurrent && yv < 0) continue;
+            xs.push(xv);
+            ys.push(yv);
+          }
+
+          if (!showNegativeCurrent) {
+            for (let i = 1; i < pts.length; i++) {
+              const x1 = pts[i - 1][0];
+              const y1 = pts[i - 1][1];
+              const x2 = pts[i][0];
+              const y2 = pts[i][1];
+              if (y1 === y2) continue;
+              if ((y1 < 0 && y2 > 0) || (y1 > 0 && y2 < 0)) {
+                const x0 = x1 + ((0 - y1) * (x2 - x1)) / (y2 - y1);
+                if (Number.isFinite(x0)) {
+                  xs.push(x0);
+                  ys.push(0);
+                }
+                break;
+              }
+            }
+          }
+
+          if (xs.length > 1) {
+            const order = xs.map((x, i) => [x, ys[i]]).sort((a, b) => a[0] - b[0]);
+            xs.length = 0;
+            ys.length = 0;
+            order.forEach(p => {
+              xs.push(p[0]);
+              ys.push(p[1]);
+            });
+          }
+
+          if (xs.length < 3) return null;
+          return { ...t, x: xs, y: ys };
+        })
+        .filter(Boolean);
+
+      if (traces.length === 0) {
+        document.getElementById('jv_result').textContent = 'JV 数据为空，请检查电压扫描范围。';
+        return;
+      }
+
+      const layout = {
+        title,
+        xaxis: { title: 'Voltage (V)' },
+        yaxis: { title: 'Current Density (mA/cm²)' },
+        hovermode: 'x unified',
+        margin: { t: 40, r: 20, b: 50, l: 60 }
+      };
+
+      if (data.mode !== '4T') {
+        const allY = traces.flatMap(t => t.y).filter(v => Number.isFinite(v)).map(v => Math.abs(v)).sort((a, b) => a - b);
+        if (allY.length > 0) {
+          const qIdx = Math.max(0, Math.floor(0.995 * (allY.length - 1)));
+          const q995 = allY[qIdx] || 0;
+          const yCap = Math.min(1e6, Math.max(100, q995 * 1.2));
+          layout.yaxis.range = showNegativeCurrent ? [-yCap, yCap] : [0, yCap];
+        }
+      }
+
+      try {
+        await Plotly.newPlot('jv_plot', traces, layout, { displayModeBar: false, responsive: true });
+      } catch (err) {
+        document.getElementById('jv_result').textContent = `JV 绘图失败: ${err?.message || err}`;
+      }
+    });
+
+    async function loadPvkDatasets() {
+      try {
+        const data = await requestTandex('pvk_datasets');
+        if (data.error) throw new Error(data.error);
+        const select = document.getElementById('full_pvk_dataset');
+        select.innerHTML = '';
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = `默认 ${data.default || ''}`.trim();
+        select.appendChild(defaultOpt);
+        (data.datasets || []).forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+      } catch (e) {
+        setStatus('full_status', `计算环境加载失败：${e.message}`);
+      }
+    }
+
+    async function loadPvkEqeDatasets() {
+      try {
+        const data = await requestTandex('pvk_eqe_datasets');
+        if (data.error) throw new Error(data.error);
+        const select = document.getElementById('full_pvk_eqe');
+        select.innerHTML = '';
+        const noneOpt = document.createElement('option');
+        noneOpt.value = '';
+        noneOpt.textContent = '不使用 EQE 数据';
+        select.appendChild(noneOpt);
+        (data.datasets || []).forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+      } catch (e) {
+        setStatus('full_status', `计算环境加载失败：${e.message}`);
+      }
+    }
+
+    async function loadPvkTxDatasets() {
+      try {
+        const data = await requestTandex('pvk_tx_datasets');
+        if (data.error) throw new Error(data.error);
+        const ids = ['full_pvk_tx_top', 'full_pvk_tx_mid', 'full_pvk_tx_bottom'];
+        ids.forEach(id => {
+          const select = document.getElementById(id);
+          select.innerHTML = '';
+          const noneOpt = document.createElement('option');
+          noneOpt.value = '';
+          noneOpt.textContent = '不使用透过率数据';
+          select.appendChild(noneOpt);
+          (data.datasets || []).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+          });
+        });
+      } catch (e) {
+        setStatus('full_status', `计算环境加载失败：${e.message}`);
+      }
+    }
+
+    setStatus('full_status', '正在加载浏览器计算环境…');
+    Promise.all([loadPvkDatasets(), loadPvkEqeDatasets(), loadPvkTxDatasets()]).then(() => {
+      if (document.getElementById('full_status').textContent === '正在加载浏览器计算环境…') {
+        setStatus('full_status', '浏览器计算就绪');
+      }
+    });
+  </script>
+</body>
+</html>
