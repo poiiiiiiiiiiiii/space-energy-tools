@@ -1549,11 +1549,6 @@
       return Array.from({ length: cols }, (_, c) => Array.from({ length: rows }, (_, r) => matrix[r]?.[c] ?? 0));
     }
 
-    function matrixPower(a) {
-      if (!a || !a.length) return 0;
-      return originalPartitionPower(a).P_total;
-    }
-
     function cropMatrix(a, bounds) {
       return a.slice(bounds.top, bounds.top + bounds.rows)
         .map(row => row.slice(bounds.left, bounds.left + bounds.cols));
@@ -1942,6 +1937,8 @@
       return sortGroupsByImp(out, imp, "asc");
     }
 
+    const FINAL_MPPT_OPTIONS = { kneeFrac: [0.70, 0.95], nIgrid: 80, IminFrac: 0.05 };
+
     function TCTopt5Power(cells, NA = 60, opts = {}) {
       const options = {
         nGroups: 5,
@@ -1982,7 +1979,8 @@
         Pbest = bestMove.Pnew;
         escapeStallCount = 0;
       }
-      const final = evaluatePartitionPower(groups, models, imp, evalOpts);
+      // Only the chosen partition needs the denser reporting grid.
+      const final = evaluatePartitionPower(groups, models, imp, options.finalEvalOpts || evalOpts);
       return { groups, P_total: final.P_total, Pmp_group: final.Pmp_group, Ilim_group: final.Ilim_group, Imp_group: final.Imp_group, Vmp_group: final.Vmp_group, Imp_cell: imp, models, orderImp, basePower: base.P_total };
     }
 
@@ -1999,14 +1997,10 @@
       return transposeMatrix(currentRawDisplayMatrix());
     }
 
-    function originalPartitionPower(light) {
-      const cells = lightToPvInputs(light);
-      const built = cells.map(cellBuildModelAndImp);
-      const models = built.map(x => x.model);
-      const imp = built.map(x => x.Imp);
+    function originalPartitionPower(light, models, imp) {
       const cols = light[0]?.length || 1;
       const groups = light.map((row, r) => row.map((_, c) => r * cols + c));
-      return evaluatePartitionPower(groups, models, imp, { kneeFrac: [0.70, 0.95], nIgrid: 80, IminFrac: 0.05 });
+      return evaluatePartitionPower(groups, models, imp, FINAL_MPPT_OPTIONS);
     }
 
     function tct2026PowerForMatrix(light) {
@@ -2017,19 +2011,22 @@
       const orderImp = imp.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
       const nGroups = clampInt(controls.optGroups?.value || 5, 2, Math.min(20, cells.length || 2));
       const groups = sortGroupsByImp(initGroups(orderImp, nGroups, "block"), imp, "asc");
-      return evaluatePartitionPower(groups, models, imp, { kneeFrac: [0.70, 0.95], nIgrid: 80, IminFrac: 0.05 });
+      return evaluatePartitionPower(groups, models, imp, FINAL_MPPT_OPTIONS);
     }
 
     function chooseBestOptimization(light) {
       const cells = lightToPvInputs(light);
       const nGroups = clampInt(controls.optGroups?.value || 5, 2, Math.min(20, cells.length || 2));
-      const result = TCTopt5Power(cells, 5, { nGroups, Kmax: 2, nIgrid: 32 });
+      const { groups, P_total, Pmp_group, Ilim_group, Imp_group, Vmp_group, models, Imp_cell } =
+        TCTopt5Power(cells, 5, { nGroups, Kmax: 2, nIgrid: 32, finalEvalOpts: FINAL_MPPT_OPTIONS });
+      const rawPower = originalPartitionPower(light, models, Imp_cell).P_total;
       if (controls.optGroups) controls.optGroups.value = nGroups;
       return {
         name: `TCT2026 ${nGroups}组 MPPT 功率优化`,
-        matrix: groupsToLightMatrix(result.groups, cells),
-        power: result.P_total,
-        details: result
+        matrix: groupsToLightMatrix(groups, cells),
+        rawPower,
+        power: P_total,
+        details: { groups, P_total, Pmp_group, Ilim_group, Imp_group, Vmp_group }
       };
     }
 
@@ -2133,9 +2130,13 @@
           const p2 = points[i + 1];
           const p3 = points[Math.min(points.length - 1, i + 2)];
           const cp1x = p1.x + (p2.x - p0.x) / 6;
-          const cp1y = p1.y + (p2.y - p0.y) / 6;
           const cp2x = p2.x - (p3.x - p1.x) / 6;
-          const cp2y = p2.y - (p3.y - p1.y) / 6;
+          // Keep the curve between the adjacent measured values.
+          const minY = Math.min(p1.y, p2.y);
+          const maxY = Math.max(p1.y, p2.y);
+          const boundedY = y => Math.max(minY, Math.min(maxY, y));
+          const cp1y = boundedY(p1.y + (p2.y - p0.y) / 6);
+          const cp2y = boundedY(p2.y - (p3.y - p1.y) / 6);
           ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
         }
       }
@@ -2190,7 +2191,7 @@
       updatePowerChartHover();
     }
 
-    function updateTopMetrics(rawPower = 0, turbPower = 0, resultPower = 0) {
+    function updateTopMetrics(rawPower = 0, resultPower = 0) {
       const delta = resultPower - rawPower;
       const roundedDelta = Number(delta.toFixed(1));
       const improvement = $("totalImprovement");
@@ -2207,8 +2208,6 @@
       }
       if ($("topRawPower")) $("topRawPower").textContent = rawPower.toFixed(1);
       if ($("topResultPower")) $("topResultPower").textContent = resultPower.toFixed(1);
-      updateTotalPowerDelta();
-      drawPowerChart(rawPower, turbPower, resultPower);
     }
 
     function updateTotalPowerDelta() {
@@ -2446,7 +2445,8 @@
       drawHeatmap($("resultCanvas"), state.best?.matrix || null);
       renderResultMatrix(state.best);
       renderGroupTable(state.best);
-      updateTopMetrics(snapshot.raw, snapshot.raw, snapshot.result);
+      updateTopMetrics(snapshot.raw, snapshot.result);
+      drawPowerChart();
     }
 
     function appendHistory(rawPower, turbPower, resultPower) {
@@ -2560,14 +2560,6 @@
       state.best = null;
       drawHeatmap($("rawCanvas"), rawVisualMatrix());
       renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
-      drawHeatmap($("resultCanvas"), null);
-      renderResultMatrix(null);
-      const rawP = matrixPower(dynamicLight);
-      $("rawPower").value = `${rawP.toFixed(1)} W`;
-      if ($("method")) $("method").value = "--";
-      if ($("resultPower")) $("resultPower").value = "--";
-      renderGroupTable(null);
-      updateTopMetrics(rawP, 0, 0);
     }
 
     function optimize() {
@@ -2579,8 +2571,9 @@
       if ($("method")) $("method").value = best.name;
       if ($("resultPower")) $("resultPower").value = `${best.power.toFixed(1)} W`;
       renderGroupTable(best);
-      const rawP = matrixPower(state.rawLight || state.light);
-      updateTopMetrics(rawP, rawP, best.power);
+      const rawP = best.rawPower;
+      $("rawPower").value = `${rawP.toFixed(1)} W`;
+      updateTopMetrics(rawP, best.power);
       appendHistory(rawP, rawP, best.power);
     }
 
@@ -2615,11 +2608,7 @@
       renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
       renderResultMatrix(state.best);
       renderGroupTable(state.best);
-      drawPowerChart(
-        matrixPower(state.rawLight),
-        matrixPower(state.rawLight),
-        state.best?.power || 0
-      );
+      drawPowerChart();
     }
 
     function setActivePage(page) {
@@ -2794,11 +2783,7 @@
         renderSnapshot(state.history[state.selectedHistoryIndex]);
       } else if (!state.paused) {
         state.selectedHistoryIndex = null;
-        drawPowerChart(
-          matrixPower(state.rawLight),
-          matrixPower(state.rawLight),
-          state.best?.power || 0
-        );
+        renderSnapshot(state.history.at(-1));
       }
       if (!controls.pauseUpdate) return;
       controls.pauseUpdate.classList.toggle("active", state.paused);
@@ -2946,11 +2931,7 @@
       drawHeatmap($("resultCanvas"), state.best?.matrix || null);
       renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
       renderResultMatrix(state.best);
-      drawPowerChart(
-        matrixPower(state.rawLight),
-        matrixPower(state.rawLight),
-        state.best?.power || 0
-      );
+      drawPowerChart();
     });
 
     refreshEnabled();

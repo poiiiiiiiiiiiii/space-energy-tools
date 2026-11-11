@@ -15,7 +15,8 @@
             --text-main: #2d3436;
         }
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text-main); padding: 20px; margin: 0; }
-        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.2fr; gap: 25px; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 25px; }
+        .left-col, .right-col { min-width: 0; }
         
         /* 通用卡片样式 */
         .card { background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); margin-bottom: 20px;}
@@ -59,7 +60,19 @@
 
         .radar-container { width: 80%; margin: 0 auto; }
 
-        @media (max-width: 1000px) { .container { grid-template-columns: 1fr; } }
+        @media (max-width: 1000px) { .container { grid-template-columns: minmax(0, 1fr); } }
+        @media (max-width: 560px) {
+            body { padding: 12px; }
+            .card { padding: 14px; }
+            .input-grid, .env-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+            .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+            .kpi-box { padding: 8px 4px; overflow-wrap: anywhere; }
+            .kpi-value { font-size: 1.14em; }
+            .env-card { padding: 10px; }
+            .env-card h4 { font-size: 1.38em; overflow-wrap: anywhere; }
+            .radar-container { width: 100%; }
+            th, td { padding: 8px 4px; overflow-wrap: anywhere; }
+        }
     </style>
 </head>
 <body>

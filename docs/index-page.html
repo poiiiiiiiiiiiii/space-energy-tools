@@ -18,11 +18,11 @@
 <h1>激光能量传输系统</h1>
 <p>站点维护与网页适配：<a href="https://github.com/poiiiiiiiiiiiii">@poiiiiiiiiiiiii</a> · <a href="https://poiiiiiiiiiiiii.github.io/space-energy-tools/">打开 <code>index.html</code></a></p>
 <h2>功能</h2>
-<p>站点首页集中进入光伏、TCT、轨道和 JA 等工具。可输入各级转换效率、传播距离、发射口径和接收直径，查看全电路效率、光斑与接收面示意图。光电效率子窗口的 PCE 可回填首页。</p>
+<p>站点首页集中进入光伏、TCT、轨道和 JA 等工具。输入各级转换效率、传播距离、发射口径和接收直径后，截获比例、光功率、电功率和光斑图会同步更新。光电效率子窗口的 PCE 可回填首页。</p>
 <h2>算法依据</h2>
-<p>把电源转换、电光转换、跟踪损失、光路传输和光电转换按链路相乘。页面用光束参数积、发射口径和距离估算光斑半径 <code>r = BPP × L / D</code>，再用 <code>πr²</code> 计算面积。按同心、均匀光斑假设，接收面小于光斑时，实际效率乘以接收面积与光斑面积之比；覆盖全部光斑时不再扣减。</p>
+<p>把电源转换、电光转换、跟瞄透过率、光路透过率和光电效率按链路相乘。将出射直径 <code>D</code> 的一半作为近似束腰半径，按 <a href="https://www.edmundoptics.eu/knowledge-center/application-notes/lasers/beam-quality-and-strehl-ratio/">BPP 的半径与发散半角定义</a>作远场估算：<code>r = BPP × L / (D/2)</code>。同轴均匀圆斑假设下，截获比例为 <code>min(1, 接收面积 / 光斑面积)</code>。接收光功率由出射光功率扣除跟瞄、传播和截获损失；再乘光电效率得到接收端电功率。波长用于标记工况，发散由输入的 BPP 决定。</p>
 <h2>适用范围</h2>
-<p>用于链路初估。面积比不考虑偏心、非均匀光强或湍流；要比较实际截获分布，应使用 <a href="tctdemo_laser.html">TCT 激光版</a>。两页各用自身的口径约定，不宜直接混用半径公式。</p>
+<p>用于链路初估。面积比不考虑偏心、非均匀光强或湍流；要模拟光强分布及阵列外损失，可使用 <a href="tctdemo_laser.html">TCT 激光版</a>。</p>
   </main>
 </body>
 </html>

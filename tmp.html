@@ -1,620 +1,99 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>太阳能电池轨道温度模拟</title>
-    <script src="./chart.js"></script>
-    <style>
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f7fa;
-            color: #333;
-        }
-        .container {
-            display: flex;
-            gap: 30px;
-        }
-        .input-panel {
-            flex: 1;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .chart-panel {
-            flex: 2;
-            display: flex;
-            flex-direction: column;
-            gap: 25px;
-        }
-        .chart-container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            position: relative;
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        h2 {
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-            margin-top: 0;
-        }
-        .input-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #2c3e50;
-        }
-        select, input[type="number"] {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        button {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            width: 100%;
-            margin-top: 10px;
-        }
-        button:hover {
-            background-color: #2980b9;
-        }
-        .data-btn {
-            background-color: #27ae60;
-        }
-        .data-btn:hover {
-            background-color: #219653;
-        }
-        .status {
-            margin-top: 10px;
-            padding: 8px;
-            border-radius: 4px;
-            background: #f8f9fa;
-            font-size: 12px;
-        }
-        canvas {
-            width: 100% !important;
-            height: 300px !important;
-        }
-        .battery-type {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .battery-type h3 {
-            margin-top: 0;
-            color: #3498db;
-        }
-        .summary {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        .summary h3 {
-            margin-top: 0;
-            color: #3498db;
-        }
-        .summary-stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .stat-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid #ddd;
-        }
-        .stat-label {
-            font-weight: 500;
-        }
-        .stat-value {
-            font-weight: 600;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>太阳能电池轨道温度模拟</title>
+  <link rel="stylesheet" href="workbench.css">
+  <script src="chart.js" defer></script>
+  <script src="orbit-temperature.js" defer></script>
 </head>
 <body>
-    <h1>太阳能电池轨道温度模拟</h1>
-    
-    <div class="container">
-        <div class="input-panel">
-            <h2>参数设置</h2>
-            
-            <div class="input-group">
-                <label for="orbit-type">轨道类型：</label>
-                <select id="orbit-type">
-                    <option value="leo400">400km LEO轨道</option>
-                    <option value="leo2000">2000km LEO轨道</option>
-                    <option value="dawn-dusk">晨昏轨道</option>
-                    <option value="geo">地球同步轨道</option>
-                    <option value="sso">太阳同步轨道</option>
-                </select>
-            </div>
-            
-            <div class="input-group">
-                <label for="orbits">模拟轨道周期数：</label>
-                <input type="number" id="orbits" min="1" max="10" value="3">
-            </div>
-            
-            <div class="battery-type">
-                <h3>晶硅太阳能电池</h3>
-                <div class="input-group">
-                    <label for="si-emissivity">发射率：</label>
-                    <input type="number" id="si-emissivity" min="0.1" max="1" step="0.01" value="0.85">
-                </div>
-                <div class="input-group">
-                    <label for="si-absorptivity">吸收率：</label>
-                    <input type="number" id="si-absorptivity" min="0.1" max="1" step="0.01" value="0.92">
-                </div>
-                <div class="input-group">
-                    <label for="si-efficiency">转换效率：</label>
-                    <input type="number" id="si-efficiency" min="0.01" max="0.5" step="0.01" value="0.22">
-                </div>
-            </div>
-            
-            <div class="battery-type">
-                <h3>钙钛矿太阳能电池</h3>
-                <div class="input-group">
-                    <label for="perovskite-emissivity">发射率：</label>
-                    <input type="number" id="perovskite-emissivity" min="0.1" max="1" step="0.01" value="0.78">
-                </div>
-                <div class="input-group">
-                    <label for="perovskite-absorptivity">吸收率：</label>
-                    <input type="number" id="perovskite-absorptivity" min="0.1" max="1" step="0.01" value="0.95">
-                </div>
-                <div class="input-group">
-                    <label for="perovskite-efficiency">转换效率：</label>
-                    <input type="number" id="perovskite-efficiency" min="0.01" max="0.5" step="0.01" value="0.26">
-                </div>
-            </div>
-            
-            <button id="simulate-btn">开始模拟</button>
-            <button id="export-btn" class="data-btn">导出温度数据(CSV)</button>
-            <div class="status" id="status">就绪</div>
-        </div>
-        
-        <div class="chart-panel">
-            <div class="chart-container">
-                <h2>温度变化对比图</h2>
-                <canvas id="temperature-chart"></canvas>
-            </div>
-            
-            <div class="chart-container">
-                <h2>太阳光辐照强度变化</h2>
-                <canvas id="irradiance-chart"></canvas>
-            </div>
-            
-            <div class="chart-container">
-                <h2>AM0光谱强度分布</h2>
-                <canvas id="spectrum-chart"></canvas>
-            </div>
-        </div>
+  <header class="app-header">
+    <div class="shell header-inner">
+      <a class="brand" href="index.html">Space Energy Tools</a>
+      <nav aria-label="站点导航">
+        <a href="index.html">返回首页</a>
+        <a href="docs/tmp.html">算法说明</a>
+      </nav>
     </div>
-
-    <script>
-        // 物理常数
-        const STEFAN_BOLTZMANN = 5.670367e-8;
-        const SOLAR_CONSTANT = 1367;
-        const AMBIENT_TEMP = 2.7;
-        
-        // 轨道参数
-        const ORBIT_PARAMS = {
-            leo400: { 
-                height: 400e3, 
-                sunlightFraction: 0.6, 
-                shadowFraction: 0.4,
-                period: 90 * 60
-            },
-            leo2000: { 
-                height: 2000e3, 
-                sunlightFraction: 0.7, 
-                shadowFraction: 0.3,
-                period: 120 * 60
-            },
-            "dawn-dusk": { 
-                height: 600e3, 
-                sunlightFraction: 1.0, 
-                shadowFraction: 0.0,
-                period: 96 * 60
-            },
-            geo: { 
-                height: 35786e3, 
-                sunlightFraction: 0.9, 
-                shadowFraction: 0.1,
-                period: 24 * 3600
-            },
-            sso: { 
-                height: 700e3, 
-                sunlightFraction: 0.8, 
-                shadowFraction: 0.2,
-                period: 99 * 60
-            }
-        };
-        
-        // 获取DOM元素
-        const simulateBtn = document.getElementById('simulate-btn');
-        const exportBtn = document.getElementById('export-btn');
-        const statusElement = document.getElementById('status');
-        
-        // 图表实例变量
-        let temperatureChart = null;
-        let irradianceChart = null;
-        let spectrumChart = null;
-        
-        // 模拟数据存储
-        let simulationData = {
-            time: [],
-            siTemp: [],
-            perovskiteTemp: [],
-            irradiance: []
-        };
-        
-        // 生成AM0光谱数据
-        function generateAM0Spectrum() {
-            const spectrum = [];
-            for (let wavelength = 300; wavelength <= 1100; wavelength += 1) {
-                const intensity = Math.exp(-Math.pow((wavelength - 500) / 150, 2)) * 1.5;
-                spectrum.push({ wavelength, intensity });
-            }
-            return spectrum;
-        }
-        
-        // 初始化光谱图
-        function initSpectrumChart() {
-            const ctx = document.getElementById('spectrum-chart').getContext('2d');
-            
-            // 如果已有图表实例，先销毁
-            if (spectrumChart) {
-                spectrumChart.destroy();
-            }
-            
-            const spectrum = generateAM0Spectrum();
-            const wavelengths = spectrum.map(d => d.wavelength);
-            const intensities = spectrum.map(d => d.intensity);
-            
-            spectrumChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: wavelengths,
-                    datasets: [{
-                        label: '光谱强度 (W/m²/nm)',
-                        data: intensities,
-                        borderColor: '#3498db',
-                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                        borderWidth: 1,
-                        fill: true,
-                        pointRadius: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: {
-                            title: { 
-                                display: true, 
-                                text: '波长 (nm)',
-                                font: { size: 12 }
-                            },
-                            min: 300,
-                            max: 1100
-                        },
-                        y: {
-                            title: { 
-                                display: true, 
-                                text: '强度 (W/m²/nm)',
-                                font: { size: 12 }
-                            },
-                            min: 0
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: { font: { size: 12 } }
-                        }
-                    }
-                }
-            });
-        }
-        
-        // 计算温度变化
-        function simulateTemperature() {
-            const orbitType = document.getElementById('orbit-type').value;
-            const orbits = parseInt(document.getElementById('orbits').value);
-            const orbitParams = ORBIT_PARAMS[orbitType];
-            
-            // 获取电池参数
-            const siEmissivity = parseFloat(document.getElementById('si-emissivity').value);
-            const siAbsorptivity = parseFloat(document.getElementById('si-absorptivity').value);
-            const siEfficiency = parseFloat(document.getElementById('si-efficiency').value);
-            const perovskiteEmissivity = parseFloat(document.getElementById('perovskite-emissivity').value);
-            const perovskiteAbsorptivity = parseFloat(document.getElementById('perovskite-absorptivity').value);
-            const perovskiteEfficiency = parseFloat(document.getElementById('perovskite-efficiency').value);
-            
-            // 验证输入
-            if (siEfficiency >= 1 || perovskiteEfficiency >= 1) {
-                statusElement.textContent = "错误：转换效率必须小于1";
-                return;
-            }
-            
-            // 重置数据
-            simulationData = { 
-                time: [], 
-                siTemp: [], 
-                perovskiteTemp: [], 
-                irradiance: [],
-                summary: {
-                    siMin: null,
-                    siMax: null,
-                    siAvg: null,
-                    perovskiteMin: null,
-                    perovskiteMax: null,
-                    perovskiteAvg: null
-                }
-            };
-            
-            statusElement.textContent = "模拟计算中...";
-            
-            // 初始条件
-            let siTemp = AMBIENT_TEMP;
-            let perovskiteTemp = AMBIENT_TEMP;
-            
-            // 模拟参数
-            const orbitPeriod = orbitParams.period;
-            const totalTime = orbits * orbitPeriod;
-            const timeStep = 60; // 60秒步长
-            
-            // 重置数据点
-            const timePoints = [];
-            const siTempPoints = [];
-            const perovskiteTempPoints = [];
-            const irradiancePoints = [];
-            
-            for (let t = 0; t <= totalTime; t += timeStep) {
-                const orbitPosition = (t % orbitPeriod) / orbitPeriod;
-                const inSunlight = orbitPosition < orbitParams.sunlightFraction;
-                const irradiance = inSunlight ? SOLAR_CONSTANT : 0;
-                
-                // 晶硅电池温度计算
-                const siHeatInput = inSunlight ? irradiance * siAbsorptivity * (1 - siEfficiency) : 0;
-                const siRadiationLoss = siEmissivity * STEFAN_BOLTZMANN * 
-                                      (Math.pow(siTemp, 4) - Math.pow(AMBIENT_TEMP, 4));
-                const siDeltaT = (siHeatInput - siRadiationLoss) * timeStep / 1000;
-                siTemp += siDeltaT;
-                
-                // 钙钛矿电池温度计算
-                const perovskiteHeatInput = inSunlight ? irradiance * perovskiteAbsorptivity * (1 - perovskiteEfficiency) : 0;
-                const perovskiteRadiationLoss = perovskiteEmissivity * STEFAN_BOLTZMANN * 
-                                              (Math.pow(perovskiteTemp, 4) - Math.pow(AMBIENT_TEMP, 4));
-                const perovskiteDeltaT = (perovskiteHeatInput - perovskiteRadiationLoss) * timeStep / 800;
-                perovskiteTemp += perovskiteDeltaT;
-                
-                // 存储数据
-                timePoints.push(t / 60);
-                siTempPoints.push(siTemp - 273.15);
-                perovskiteTempPoints.push(perovskiteTemp - 273.15);
-                irradiancePoints.push(irradiance);
-            }
-            
-            // 保存数据
-            simulationData.time = timePoints;
-            simulationData.siTemp = siTempPoints;
-            simulationData.perovskiteTemp = perovskiteTempPoints;
-            simulationData.irradiance = irradiancePoints;
-            
-            // 计算统计信息
-            if (siTempPoints.length > 0) {
-                simulationData.summary.siMin = Math.min(...siTempPoints);
-                simulationData.summary.siMax = Math.max(...siTempPoints);
-                simulationData.summary.siAvg = siTempPoints.reduce((a, b) => a + b, 0) / siTempPoints.length;
-                
-                simulationData.summary.perovskiteMin = Math.min(...perovskiteTempPoints);
-                simulationData.summary.perovskiteMax = Math.max(...perovskiteTempPoints);
-                simulationData.summary.perovskiteAvg = perovskiteTempPoints.reduce((a, b) => a + b, 0) / perovskiteTempPoints.length;
-            }
-            
-            // 更新图表
-            updateTemperatureChart();
-            updateIrradianceChart();
-            
-            statusElement.textContent = "模拟完成";
-        }
-        
-        // 更新温度图表
-        function updateTemperatureChart() {
-            const ctx = document.getElementById('temperature-chart').getContext('2d');
-            
-            // 如果已有图表实例，先销毁
-            if (temperatureChart) {
-                temperatureChart.destroy();
-            }
-            
-            temperatureChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: simulationData.time,
-                    datasets: [
-                        {
-                            label: '晶硅太阳能电池',
-                            data: simulationData.siTemp,
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            borderWidth: 2,
-                            fill: false,
-                            tension: 0.1
-                        },
-                        {
-                            label: '钙钛矿太阳能电池',
-                            data: simulationData.perovskiteTemp,
-                            borderColor: '#e74c3c',
-                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                            borderWidth: 2,
-                            fill: false,
-                            tension: 0.1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: { 
-                            title: { 
-                                display: true, 
-                                text: '时间 (分钟)',
-                                font: { size: 12 }
-                            }
-                        },
-                        y: { 
-                            title: { 
-                                display: true, 
-                                text: '温度 (°C)',
-                                font: { size: 12 }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: { font: { size: 12 } }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false
-                        }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'nearest'
-                    }
-                }
-            });
-        }
-        
-        // 更新辐照度图表
-        function updateIrradianceChart() {
-            const ctx = document.getElementById('irradiance-chart').getContext('2d');
-            
-            // 如果已有图表实例，先销毁
-            if (irradianceChart) {
-                irradianceChart.destroy();
-            }
-            
-            irradianceChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: simulationData.time,
-                    datasets: [{
-                        label: '太阳辐照强度 (W/m²)',
-                        data: simulationData.irradiance,
-                        borderColor: '#f39c12',
-                        backgroundColor: 'rgba(243, 156, 18, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: { 
-                            title: { 
-                                display: true, 
-                                text: '时间 (分钟)',
-                                font: { size: 12 }
-                            }
-                        },
-                        y: { 
-                            title: { 
-                                display: true, 
-                                text: '辐照强度 (W/m²)',
-                                font: { size: 12 }
-                            }, 
-                            min: 0 
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: { font: { size: 12 } }
-                        }
-                    }
-                }
-            });
-        }
-        
-        // 修复CSV导出功能
-        function exportCSV() {
-            if (simulationData.time.length === 0) {
-                statusElement.textContent = "错误：请先运行模拟";
-                return;
-            }
-            
-            try {
-                let csvContent = "时间(分钟),晶硅电池温度(℃),钙钛矿电池温度(℃),辐照强度(W/m²)\n";
-                
-                for (let i = 0; i < simulationData.time.length; i++) {
-                    csvContent += `${simulationData.time[i].toFixed(2)},${simulationData.siTemp[i].toFixed(2)},${simulationData.perovskiteTemp[i].toFixed(2)},${simulationData.irradiance[i].toFixed(2)}\n`;
-                }
-                
-                // 创建Blob对象
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
-                
-                // 创建下载链接
-                const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                
-                // 设置下载属性
-                link.setAttribute('href', url);
-                link.setAttribute('download', 'solar_cell_temperature_data.csv');
-                
-                // 添加到DOM
-                document.body.appendChild(link);
-                
-                // 触发点击
-                link.click();
-                
-                // 清理
-                setTimeout(() => {
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                }, 100);
-                
-                statusElement.textContent = "CSV文件已导出到下载文件夹";
-            } catch (error) {
-                console.error('导出错误:', error);
-                statusElement.textContent = "导出失败，请重试";
-            }
-        }
-        
-        // 事件监听
-        simulateBtn.addEventListener('click', simulateTemperature);
-        exportBtn.addEventListener('click', exportCSV);
-        
-        // 初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            initSpectrumChart();
-            statusElement.textContent = "就绪 - 点击'开始模拟'按钮进行计算";
-        });
-    </script>
+  </header>
+  <main class="shell">
+    <div class="page-title">
+      <h1>太阳能电池轨道温度模拟</h1>
+      <span class="tag">预设轨道 · 集总热平衡</span>
+    </div>
+    <dl class="metrics" aria-label="轨道温度摘要">
+      <div><dt>单圈周期</dt><dd><output id="periodMetric">--</output><small>min</small></dd></div>
+      <div><dt>单圈地影</dt><dd><output id="eclipseMetric">--</output><small>min</small></dd></div>
+      <div><dt>晶硅温度范围</dt><dd class="blue"><output id="siRange">--</output><small>°C</small></dd></div>
+      <div><dt>钙钛矿温度范围</dt><dd class="amber"><output id="pvRange">--</output><small>°C</small></dd></div>
+    </dl>
+    <div class="work-grid thermal-grid">
+      <form id="thermalForm" class="work-surface" novalidate>
+        <h2>模拟参数</h2>
+        <fieldset class="field-section">
+          <legend>轨道工况</legend>
+          <div class="fields">
+            <label class="full-field">轨道预设
+              <select id="orbit-type">
+                <option value="leo400">400 km 低地轨道</option>
+                <option value="leo2000">2000 km 低地轨道</option>
+                <option value="dawn-dusk">晨昏轨道</option>
+                <option value="geo">地球同步轨道</option>
+                <option value="sso">太阳同步轨道</option>
+              </select>
+            </label>
+            <label>模拟圈数<input id="orbits" type="number" min="1" max="10" step="1" value="3" required></label>
+            <label>初始温度 <span>°C</span><input id="initialTemp" type="number" min="-270.45" max="200" step="any" value="20" required></label>
+          </div>
+        </fieldset>
+        <fieldset class="field-section">
+          <legend>晶硅太阳能电池</legend>
+          <div class="fields">
+            <label>发射率<input id="si-emissivity" type="number" min="0.1" max="1" step="any" value="0.85" required></label>
+            <label>吸收率<input id="si-absorptivity" type="number" min="0.1" max="1" step="any" value="0.92" required></label>
+            <label>转换效率<input id="si-efficiency" type="number" min="0" max="0.5" step="any" value="0.22" required></label>
+            <label>面热容 <span>J/(m²·K)</span><input id="si-heat-capacity" type="number" min="100" max="100000" step="any" value="1000" required></label>
+          </div>
+        </fieldset>
+        <fieldset class="field-section">
+          <legend>钙钛矿太阳能电池</legend>
+          <div class="fields">
+            <label>发射率<input id="perovskite-emissivity" type="number" min="0.1" max="1" step="any" value="0.78" required></label>
+            <label>吸收率<input id="perovskite-absorptivity" type="number" min="0.1" max="1" step="any" value="0.95" required></label>
+            <label>转换效率<input id="perovskite-efficiency" type="number" min="0" max="0.5" step="any" value="0.26" required></label>
+            <label>面热容 <span>J/(m²·K)</span><input id="perovskite-heat-capacity" type="number" min="100" max="100000" step="any" value="800" required></label>
+          </div>
+        </fieldset>
+        <div class="actions">
+          <button id="simulate-btn" type="submit">开始模拟</button>
+          <button id="export-btn" type="button" class="secondary" disabled>导出 CSV</button>
+        </div>
+        <p id="status" class="status" role="status"></p>
+      </form>
+      <div class="thermal-charts">
+        <section class="work-surface" aria-labelledby="temperatureHeading">
+          <div class="section-title">
+            <h2 id="temperatureHeading">轨道温度时序</h2>
+            <span class="chart-key"><i class="swatch shadow"></i>地影区间</span>
+          </div>
+          <div class="chart-area chart-main">
+            <canvas id="temperature-chart" aria-label="晶硅与钙钛矿电池的温度变化"></canvas>
+          </div>
+        </section>
+        <div class="chart-pair">
+          <section class="work-surface" aria-labelledby="irradianceHeading">
+            <h2 id="irradianceHeading">太阳辐照时序</h2>
+            <div class="chart-area"><canvas id="irradiance-chart" aria-label="日照与地影辐照变化"></canvas></div>
+          </section>
+          <section class="work-surface" aria-labelledby="spectrumHeading">
+            <h2 id="spectrumHeading">AM0 光谱形状示意</h2>
+            <div class="chart-area"><canvas id="spectrum-chart" aria-label="归一化光谱形状示意"></canvas></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
 </body>
 </html>
