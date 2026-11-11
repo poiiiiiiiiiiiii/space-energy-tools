@@ -1742,9 +1742,7 @@
     }
 
     function modelVFromIKnee2v0(model, Iwork, kneeFrac = [0.70, 0.95]) {
-      const VL = (Iwork - model.bL) / model.gL;
-      const VH = (Iwork - model.bH) / model.gH;
-      let Vwork = Iwork >= model.Ix ? VL : VH;
+      const Vwork = Iwork >= model.Ix ? (Iwork - model.bL) / model.gL : (Iwork - model.bH) / model.gH;
       const Vlo = kneeFrac[0] * model.Voc;
       const Vhi = kneeFrac[1] * model.Voc;
       return Math.min(Math.max(Vwork, Vlo), Vhi);
@@ -1769,7 +1767,8 @@
       let best = { Pmp_lim: -Infinity, Imp_lim: 0, Vmp_lim: 0, Ilim_used: IlimUsed };
       for (let k = 0; k < nIgrid; k++) {
         const Iw = nIgrid === 1 ? IlimUsed : Imin + (IlimUsed - Imin) * k / (nIgrid - 1);
-        const Vsum = models.reduce((s, model) => s + modelVFromIKnee2v0(model, Iw, kneeFrac), 0);
+        let Vsum = 0;
+        for (const model of models) Vsum += modelVFromIKnee2v0(model, Iw, kneeFrac);
         const P = Iw * Vsum;
         if (P > best.Pmp_lim) best = { Pmp_lim: P, Imp_lim: Iw, Vmp_lim: Vsum, Ilim_used: IlimUsed };
       }
@@ -1829,7 +1828,7 @@
       return pairs;
     }
 
-    function findBestMove(groups, models, imp, evalOpts, Pbest, Kmax, mode) {
+    function findBestMove(groups, models, imp, evalOpts, groupPowers, Pbest, Kmax, mode) {
       let bestDelta = 0;
       let bestMove = null;
       for (const [gA, gB] of getPairs(mode, groups.length)) {
@@ -1850,15 +1849,17 @@
           for (let k = 1; k <= kMaxTry; k++) {
             const moved = takeEnd === "weak" ? from.slice(0, k) : from.slice(from.length - k);
             const left = takeEnd === "weak" ? from.slice(k) : from.slice(0, from.length - k);
-            let cand = groups.map(group => group.slice());
-            cand[gFrom] = left;
-            cand[gTo] = to.concat(moved);
-            cand = sortGroupsByImp(cand, imp, "asc");
-            const r = evaluatePartitionPower(cand, models, imp, evalOpts);
-            const delta = r.P_total - Pbest;
+            const changed = [left, to.concat(moved).sort((a, b) => imp[a] - imp[b])];
+            const [fromPower, toPower] = evaluatePartitionPower(changed, models, imp, evalOpts).Pmp_group;
+            // Reuse untouched strings and sum in the original order to preserve tie-breaking.
+            let Pnew = 0;
+            for (let g = 0; g < groups.length; g++) {
+              Pnew += g === gFrom ? fromPower : g === gTo ? toPower : groupPowers[g];
+            }
+            const delta = Pnew - Pbest;
             if (delta > bestDelta) {
               bestDelta = delta;
-              bestMove = { gFrom, gTo, k, Pnew: r.P_total, tag: takeEnd === "weak" ? "weakEnd" : "strongEnd" };
+              bestMove = { gFrom, gTo, k, Pnew, fromPower, toPower, tag: takeEnd === "weak" ? "weakEnd" : "strongEnd" };
             }
           }
         }
@@ -1897,16 +1898,17 @@
       const orderImp = imp.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
       let groups = sortGroupsByImp(initGroups(orderImp, options.nGroups, options.initMode), imp, "asc");
       const evalOpts = { kneeFrac: options.kneeFrac, nIgrid: options.nIgrid, IminFrac: options.IminFrac };
-      let base = evaluatePartitionPower(groups, models, imp, evalOpts);
+      const base = evaluatePartitionPower(groups, models, imp, evalOpts);
+      const groupPowers = base.Pmp_group.slice();
       let Pbest = base.P_total;
       let escapeStallCount = 0;
       for (let it = 1; it <= NA; it++) {
-        let { bestMove, bestDelta } = findBestMove(groups, models, imp, evalOpts, Pbest, options.Kmax, "adjacent");
+        let { bestMove, bestDelta } = findBestMove(groups, models, imp, evalOpts, groupPowers, Pbest, options.Kmax, "adjacent");
         if ((!bestMove || bestDelta <= 0) && options.escapeEnable) {
           escapeStallCount++;
           const doEscapeNow = ((escapeStallCount - 1) % options.escapeEvery) === 0;
           if (doEscapeNow && escapeStallCount <= options.escapeMaxRounds) {
-            const escape = findBestMove(groups, models, imp, evalOpts, Pbest, options.Kmax, "skipone");
+            const escape = findBestMove(groups, models, imp, evalOpts, groupPowers, Pbest, options.Kmax, "skipone");
             if (escape.bestMove && escape.bestDelta > bestDelta) {
               bestMove = escape.bestMove;
               bestDelta = escape.bestDelta;
@@ -1915,6 +1917,8 @@
         }
         if (!bestMove || bestDelta <= 0) break;
         groups = applyMove(groups, imp, bestMove);
+        groupPowers[bestMove.gFrom] = bestMove.fromPower;
+        groupPowers[bestMove.gTo] = bestMove.toPower;
         Pbest = bestMove.Pnew;
         escapeStallCount = 0;
       }
@@ -1986,6 +1990,7 @@
       const cols = matrix?.[0]?.length || 1;
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
       canvas.width = Math.max(1, Math.floor(rect.width * dpr));
       canvas.height = Math.max(1, Math.floor(rect.height * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2013,7 +2018,7 @@
 
     function drawPowerChart(rawPower = 0, turbPower = 0, resultPower = 0) {
       const canvas = $("powerChart");
-      if (!canvas) return;
+      if (!canvas || state.currentPage !== "1") return;
       const ctx = canvas.getContext("2d");
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
@@ -2300,10 +2305,6 @@
       }).join("");
     }
 
-    function cloneData(value) {
-      return value == null ? value : JSON.parse(JSON.stringify(value));
-    }
-
     function updatePresentationStatus() {
       document.body.classList.toggle("is-paused", state.paused);
       $("liveStatus").textContent = state.paused ? "已暂停" : "稳态记录";
@@ -2373,18 +2374,14 @@
 
     function renderSnapshot(snapshot) {
       if (!snapshot) return;
-      state.rawLight = cloneData(snapshot.rawLight);
-      state.rawDisplay = cloneData(snapshot.rawDisplay);
-      state.light = cloneData(snapshot.light || snapshot.rawLight);
-      state.best = cloneData(snapshot.best);
-      drawHeatmap($("rawCanvas"), rawVisualMatrix());
-      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
-      drawHeatmap($("resultCanvas"), state.best?.matrix || null);
-      renderResultMatrix(state.best);
-      renderGroupTable(state.best);
+      const changed = state.rawLight !== snapshot.rawLight || state.best !== snapshot.best;
+      state.rawLight = snapshot.rawLight;
+      state.rawDisplay = snapshot.rawDisplay;
+      state.light = snapshot.light || snapshot.rawLight;
+      state.best = snapshot.best;
       updateTopMetrics(snapshot.raw, snapshot.result);
+      if (changed) renderVisibleArray();
       drawPowerChart();
-      renderAm0Overview();
       updatePresentationStatus();
     }
 
@@ -2395,10 +2392,11 @@
         t: state.frame++,
         raw,
         result,
-        rawLight: cloneData(state.rawLight),
-        rawDisplay: cloneData(state.rawDisplay),
-        light: cloneData(state.light),
-        best: cloneData(state.best)
+        // Generation and optimization replace these frame objects; rendering only reads them.
+        rawLight: state.rawLight,
+        rawDisplay: state.rawDisplay,
+        light: state.light,
+        best: state.best
       });
       state.cumulativePowerDelta += result - raw;
       if (state.history.length > 30) {
@@ -2498,25 +2496,20 @@
       state.rawLight = dynamicLight;
       state.light = dynamicLight;
       state.best = null;
-      drawHeatmap($("rawCanvas"), rawVisualMatrix());
-      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
     }
 
     function optimize() {
       if (!state.light) generate();
       const best = chooseBestOptimization(state.light);
       state.best = best;
-      drawHeatmap($("resultCanvas"), best.matrix);
-      renderResultMatrix(best);
       if ($("method")) $("method").value = best.name;
       if ($("resultPower")) $("resultPower").value = `${best.power.toFixed(1)} W`;
-      renderGroupTable(best);
       const rawP = best.rawPower;
       $("rawPower").value = `${rawP.toFixed(1)} W`;
       state.currentPower = { raw: rawP, result: best.power };
       updateTopMetrics(rawP, best.power);
       appendHistory(rawP, rawP, best.power);
-      renderAm0Overview();
+      renderVisibleArray();
     }
 
     function resetHistory() {
@@ -2546,14 +2539,34 @@
       return String(el?.dataset?.pageSection || "").split(/\s+/).filter(Boolean);
     }
 
+    const renderedArrays = new Map();
+
+    function renderVisibleArray() {
+      const page = state.currentPage;
+      const frame = page === "2" ? state.rawLight : state.best;
+      if (!frame || renderedArrays.get(page) === frame) return;
+      if (state.currentPage === "1") renderAm0Overview();
+      else if (state.currentPage === "2") {
+        const matrix = rawVisualMatrix();
+        drawHeatmap($("rawCanvas"), matrix);
+        renderLightMatrix("rawMatrix", matrix, rawDisplayOptions());
+      } else if (state.currentPage === "3") {
+        drawHeatmap($("resultCanvas"), state.best?.matrix || null);
+        renderResultMatrix(state.best);
+      } else if (state.currentPage === "4") {
+        renderGroupTable(state.best);
+      }
+      renderedArrays.set(page, frame);
+    }
+
     function refreshCurrentPageView() {
-      renderAm0Overview();
-      drawHeatmap($("rawCanvas"), rawVisualMatrix());
-      drawHeatmap($("resultCanvas"), state.best?.matrix || null);
-      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
-      renderResultMatrix(state.best);
-      renderGroupTable(state.best);
+      renderVisibleArray();
       drawPowerChart();
+    }
+
+    function refreshArrayLayout() {
+      renderedArrays.clear();
+      refreshCurrentPageView();
     }
 
     function setActivePage(page) {
@@ -2838,7 +2851,7 @@
       const active = document.body.classList.toggle("presentation-mode");
       $("presentationToggle").textContent = active ? "展开参数" : "收起参数";
       $("presentationToggle").setAttribute("aria-pressed", String(active));
-      refreshCurrentPageView();
+      refreshArrayLayout();
     });
     $("fullscreenToggle").addEventListener("click", async () => {
       try {
@@ -2848,7 +2861,7 @@
     });
     document.addEventListener("fullscreenchange", () => {
       $("fullscreenToggle").textContent = document.fullscreenElement ? "退出全屏" : "全屏";
-      refreshCurrentPageView();
+      refreshArrayLayout();
     });
     $("powerChart")?.addEventListener("click", selectHistoryFromChart);
     $("powerChart")?.addEventListener("pointermove", event => {
@@ -2865,14 +2878,7 @@
     ["showRawCellId", "showRawGroupName", "showRawCellPower"].forEach(id => {
       $(id)?.addEventListener("change", () => renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions()));
     });
-    window.addEventListener("resize", () => {
-      renderAm0Overview();
-      drawHeatmap($("rawCanvas"), rawVisualMatrix());
-      drawHeatmap($("resultCanvas"), state.best?.matrix || null);
-      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
-      renderResultMatrix(state.best);
-      drawPowerChart();
-    });
+    window.addEventListener("resize", refreshArrayLayout);
 
     refreshEnabled();
     generate();

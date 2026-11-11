@@ -1090,6 +1090,7 @@
     .matrix-grid.spot-model .matrix-cell { container-type: inline-size; }
     .matrix-grid.dense-cells .cell-id, .matrix-grid.dense-cells .cell-sub { display: none; }
     .matrix-grid.micro-cells .cell-main { display: none; }
+    .matrix-cell.is-empty > span { display: none; }
     @container (max-width: 35px) { .cell-id, .cell-sub { display: none; } }
     .raw-array-panel .chart > .legend { display: none; }
     .result .chart, .group-panel { background: white; border: 0; border-radius: 0; }
@@ -1810,9 +1811,7 @@
     }
 
     function modelVFromIKnee2v0(model, Iwork, kneeFrac = [0.70, 0.95]) {
-      const VL = (Iwork - model.bL) / model.gL;
-      const VH = (Iwork - model.bH) / model.gH;
-      let Vwork = Iwork >= model.Ix ? VL : VH;
+      const Vwork = Iwork >= model.Ix ? (Iwork - model.bL) / model.gL : (Iwork - model.bH) / model.gH;
       const Vlo = kneeFrac[0] * model.Voc;
       const Vhi = kneeFrac[1] * model.Voc;
       return Math.min(Math.max(Vwork, Vlo), Vhi);
@@ -1837,7 +1836,8 @@
       let best = { Pmp_lim: -Infinity, Imp_lim: 0, Vmp_lim: 0, Ilim_used: IlimUsed };
       for (let k = 0; k < nIgrid; k++) {
         const Iw = nIgrid === 1 ? IlimUsed : Imin + (IlimUsed - Imin) * k / (nIgrid - 1);
-        const Vsum = models.reduce((s, model) => s + modelVFromIKnee2v0(model, Iw, kneeFrac), 0);
+        let Vsum = 0;
+        for (const model of models) Vsum += modelVFromIKnee2v0(model, Iw, kneeFrac);
         const P = Iw * Vsum;
         if (P > best.Pmp_lim) best = { Pmp_lim: P, Imp_lim: Iw, Vmp_lim: Vsum, Ilim_used: IlimUsed };
       }
@@ -1892,7 +1892,7 @@
       return pairs;
     }
 
-    function findBestMove(groups, models, imp, evalOpts, Pbest, Kmax, mode) {
+    function findBestMove(groups, models, imp, evalOpts, groupPowers, Pbest, Kmax, mode) {
       let bestDelta = 0;
       let bestMove = null;
       for (const [gA, gB] of getPairs(mode, groups.length)) {
@@ -1911,15 +1911,17 @@
           for (let k = 1; k <= kMaxTry; k++) {
             const moved = takeEnd === "weak" ? from.slice(0, k) : from.slice(from.length - k);
             const left = takeEnd === "weak" ? from.slice(k) : from.slice(0, from.length - k);
-            let cand = groups.map(group => group.slice());
-            cand[gFrom] = left;
-            cand[gTo] = to.concat(moved);
-            cand = sortGroupsByImp(cand, imp, "asc");
-            const r = evaluatePartitionPower(cand, models, imp, evalOpts);
-            const delta = r.P_total - Pbest;
+            const changed = [left, to.concat(moved).sort((a, b) => imp[a] - imp[b])];
+            const [fromPower, toPower] = evaluatePartitionPower(changed, models, imp, evalOpts).Pmp_group;
+            // Reuse untouched strings and sum in the original order to preserve tie-breaking.
+            let Pnew = 0;
+            for (let g = 0; g < groups.length; g++) {
+              Pnew += g === gFrom ? fromPower : g === gTo ? toPower : groupPowers[g];
+            }
+            const delta = Pnew - Pbest;
             if (delta > bestDelta) {
               bestDelta = delta;
-              bestMove = { gFrom, gTo, k, Pnew: r.P_total, tag: takeEnd === "weak" ? "weakEnd" : "strongEnd" };
+              bestMove = { gFrom, gTo, k, Pnew, fromPower, toPower, tag: takeEnd === "weak" ? "weakEnd" : "strongEnd" };
             }
           }
         }
@@ -1958,16 +1960,17 @@
       const orderImp = imp.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
       let groups = sortGroupsByImp(initGroups(orderImp, options.nGroups, options.initMode), imp, "asc");
       const evalOpts = { kneeFrac: options.kneeFrac, nIgrid: options.nIgrid, IminFrac: options.IminFrac };
-      let base = evaluatePartitionPower(groups, models, imp, evalOpts);
+      const base = evaluatePartitionPower(groups, models, imp, evalOpts);
+      const groupPowers = base.Pmp_group.slice();
       let Pbest = base.P_total;
       let escapeStallCount = 0;
       for (let it = 1; it <= NA; it++) {
-        let { bestMove, bestDelta } = findBestMove(groups, models, imp, evalOpts, Pbest, options.Kmax, "adjacent");
+        let { bestMove, bestDelta } = findBestMove(groups, models, imp, evalOpts, groupPowers, Pbest, options.Kmax, "adjacent");
         if ((!bestMove || bestDelta <= 0) && options.escapeEnable) {
           escapeStallCount++;
           const doEscapeNow = ((escapeStallCount - 1) % options.escapeEvery) === 0;
           if (doEscapeNow && escapeStallCount <= options.escapeMaxRounds) {
-            const escape = findBestMove(groups, models, imp, evalOpts, Pbest, options.Kmax, "skipone");
+            const escape = findBestMove(groups, models, imp, evalOpts, groupPowers, Pbest, options.Kmax, "skipone");
             if (escape.bestMove && escape.bestDelta > bestDelta) {
               bestMove = escape.bestMove;
               bestDelta = escape.bestDelta;
@@ -1976,6 +1979,8 @@
         }
         if (!bestMove || bestDelta <= 0) break;
         groups = applyMove(groups, imp, bestMove);
+        groupPowers[bestMove.gFrom] = bestMove.fromPower;
+        groupPowers[bestMove.gTo] = bestMove.toPower;
         Pbest = bestMove.Pnew;
         escapeStallCount = 0;
       }
@@ -2047,6 +2052,7 @@
       const cols = matrix?.[0]?.length || 1;
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
       canvas.width = Math.max(1, Math.floor(rect.width * dpr));
       canvas.height = Math.max(1, Math.floor(rect.height * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2074,7 +2080,7 @@
 
     function drawPowerChart(rawPower = 0, turbPower = 0, resultPower = 0) {
       const canvas = $("powerChart");
-      if (!canvas) return;
+      if (!canvas || state.currentPage !== "1") return;
       const ctx = canvas.getContext("2d");
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
@@ -2283,6 +2289,9 @@
       $("frameReadout").textContent = String(selected ? selected.t + 1 : Math.max(1, state.frame)).padStart(3, "0");
     }
 
+    const beamRaster = document.createElement("canvas");
+    let lastDrawnBeam = null;
+
     function drawBeamModel() {
       const canvas = $("beamCanvas");
       if (!canvas || !state.rawDisplay?.field) return;
@@ -2296,10 +2305,12 @@
       $("escapedPower").textContent = `${escapedPower.toFixed(2)} W`;
       $("captureRatio").textContent = `${(100 * Math.min(1, capturedPower / emittedPower)).toFixed(1)}%`;
       const rect = canvas.getBoundingClientRect();
-      if (!rect.width) return;
+      if (!rect.width || state.rawDisplay === lastDrawnBeam) return;
       const size = 480;
-      canvas.width = size;
-      canvas.height = size;
+      if (canvas.width !== size || canvas.height !== size) {
+        canvas.width = size;
+        canvas.height = size;
+      }
       const ctx = canvas.getContext("2d");
       const matrix = transposeMatrix(field.matrix);
       const rows = matrix.length, cols = matrix[0].length;
@@ -2317,28 +2328,26 @@
       const width = fieldW * scale, height = fieldH * scale;
       const left = originX + field.top * scale, top = originY + field.left * scale;
       const stops = [[16,25,27], [19,95,131], [32,179,165], [246,209,95], [255,244,221]];
-      const pixels = ctx.createImageData(size, size);
-      // Bilinear display interpolation preserves the sampled field and its physical aspect.
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          let t = 0;
-          if (x >= left && x < left + width && y >= top && y < top + height) {
-            const gx = Math.max(0, Math.min(cols - 1, (x - left) / width * cols - .5));
-            const gy = Math.max(0, Math.min(rows - 1, (y - top) / height * rows - .5));
-            const x0 = Math.floor(gx), y0 = Math.floor(gy);
-            const x1 = Math.min(cols - 1, x0 + 1), y1 = Math.min(rows - 1, y0 + 1);
-            const dx = gx - x0, dy = gy - y0;
-            t = ((matrix[y0][x0] * (1 - dx) + matrix[y0][x1] * dx) * (1 - dy)
-              + (matrix[y1][x0] * (1 - dx) + matrix[y1][x1] * dx) * dy) / max;
-          }
-          const ramp = Math.max(0, Math.min(1, t)) * 4;
+      if (beamRaster.width !== cols || beamRaster.height !== rows) {
+        beamRaster.width = cols;
+        beamRaster.height = rows;
+      }
+      const raster = beamRaster.getContext("2d");
+      const pixels = raster.createImageData(cols, rows);
+      // Color the original samples once and let the browser scale the visual raster.
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const ramp = Math.max(0, Math.min(1, matrix[y][x] / max)) * 4;
           const stop = Math.min(3, Math.floor(ramp)), mix = ramp - stop;
-          const offset = (y * size + x) * 4;
+          const offset = (y * cols + x) * 4;
           for (let c = 0; c < 3; c++) pixels.data[offset + c] = stops[stop][c] * (1 - mix) + stops[stop + 1][c] * mix;
           pixels.data[offset + 3] = 255;
         }
       }
-      ctx.putImageData(pixels, 0, 0);
+      raster.putImageData(pixels, 0, 0);
+      ctx.fillStyle = "rgb(16,25,27)";
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(beamRaster, left, top, width, height);
       ctx.strokeStyle = "rgba(211,234,228,.13)";
       ctx.lineWidth = 1;
       for (let i = 0; i <= 8; i++) {
@@ -2355,7 +2364,10 @@
       ctx.font = "12px Microsoft YaHei, sans-serif";
       ctx.fillText("电池阵列边界", 16, 22);
       ctx.fillText(formatMeters(viewSpan), 16, size - 12);
+      lastDrawnBeam = state.rawDisplay;
     }
+
+    const rawGridCache = new WeakMap();
 
     function renderLightMatrix(containerId, matrix, options = {}) {
       if (containerId === "rawMatrix") drawBeamModel();
@@ -2367,6 +2379,7 @@
       else el.style.removeProperty("--cell-aspect");
       if (!matrix || !matrix.length) {
         el.innerHTML = "";
+        rawGridCache.delete(el);
         return;
       }
       const rows = matrix.length;
@@ -2380,25 +2393,59 @@
       const showGroup = options.showGroup ?? false;
       const showPower = options.showPower ?? true;
       const activeBounds = options.activeBounds || { top: 0, left: 0, rows, cols };
-      el.style.setProperty("--cols", cols);
-      el.innerHTML = matrix.map((row, r) => row.map((value, c) => {
-        const active = r >= activeBounds.top && r < activeBounds.top + activeBounds.rows && c >= activeBounds.left && c < activeBounds.left + activeBounds.cols;
-        const activeRow = r - activeBounds.top;
-        const activeCol = c - activeBounds.left;
-        const id = options.seriesVertical ? activeCol * activeBounds.rows + activeRow + 1 : activeRow * activeBounds.cols + activeCol + 1;
-        const color = heatColor(value, max);
-        const isEmpty = value <= 0;
-        const idHtml = active && showId ? `<span class="cell-id">#${id}</span>` : "";
-        const main = active ? (showGroup ? `G${(options.seriesVertical ? activeCol : activeRow) + 1}` : (showPower ? value.toFixed(1) : "")) : "";
-        const sub = active ? (showPower && showGroup ? `${value.toFixed(1)}W` : (showPower ? (options.unit || "W") : "")) : "";
-        const cls = active ? "is-array-cell" : "is-padding-cell";
-        const tooltip = active ? `通道 #${id} · G${(options.seriesVertical ? activeCol : activeRow) + 1} · ${value.toFixed(3)} W` : "阵列外光斑";
-        return `<div class="matrix-cell ${cls}" title="${tooltip}" style="background:${isEmpty ? "#f8fafc" : color.bg};border-color:${isEmpty ? "#e2e8f0" : color.border};opacity:${isEmpty ? .42 : 1}">
-          ${isEmpty ? "" : idHtml}
-          <span class="cell-main">${isEmpty ? "" : main}</span>
-          <span class="cell-sub">${isEmpty ? "" : sub}</span>
-        </div>`;
-      }).join("")).join("");
+      const { top, left, rows: activeRows, cols: activeCols } = activeBounds;
+      const key = [rows, cols, top, left, activeRows, activeCols, options.seriesVertical, showId, showGroup, showPower].join(",");
+      let grid = rawGridCache.get(el);
+      if (grid?.key !== key) {
+        el.style.setProperty("--cols", cols);
+        const fragment = document.createDocumentFragment();
+        const cells = matrix.flatMap((row, r) => row.map((_, c) => {
+          const y = r - top, x = c - left;
+          const active = y >= 0 && y < activeRows && x >= 0 && x < activeCols;
+          const cell = document.createElement("div");
+          cell.className = `matrix-cell ${active ? "is-array-cell" : "is-padding-cell"}`;
+          const id = options.seriesVertical ? x * activeRows + y + 1 : y * activeCols + x + 1;
+          const group = `G${(options.seriesVertical ? x : y) + 1}`;
+          const label = active ? `通道 #${id} · ${group} · ` : "";
+          cell.title = label ? "" : "阵列外光斑";
+          const addLabel = (name, value = "") => {
+            const span = document.createElement("span");
+            span.className = name;
+            span.textContent = value;
+            cell.appendChild(span);
+            return span;
+          };
+          if (active && showId) addLabel("cell-id", `#${id}`);
+          const main = active && (showGroup || showPower) ? addLabel("cell-main", showGroup ? group : "") : null;
+          const sub = active && showPower ? addLabel("cell-sub") : null;
+          fragment.appendChild(cell);
+          return { cell, label, main, sub };
+        }));
+        el.replaceChildren(fragment);
+        grid = { key, cells };
+        rawGridCache.set(el, grid);
+      }
+      matrix.forEach((row, r) => row.forEach((value, c) => {
+        const entry = grid.cells[r * cols + c];
+        const { cell, label, main, sub } = entry;
+        const empty = value <= 0;
+        const color = empty ? { bg: "#f8fafc", border: "#e2e8f0" } : heatColor(value, max);
+        if (entry.bg !== color.bg) cell.style.backgroundColor = entry.bg = color.bg;
+        if (entry.border !== color.border) cell.style.borderColor = entry.border = color.border;
+        if (entry.empty !== empty) {
+          cell.style.opacity = empty ? .42 : 1;
+          cell.classList.toggle("is-empty", empty);
+          entry.empty = empty;
+        }
+        if (label && entry.value !== value) cell.title = `${label}${value.toFixed(3)} W`;
+        if (showPower && entry.value !== value) {
+          const text = value.toFixed(1);
+          if (main && !showGroup && main.textContent !== text) main.textContent = text;
+          const caption = showGroup ? `${text}W` : (options.unit || "W");
+          if (sub && sub.textContent !== caption) sub.textContent = caption;
+        }
+        entry.value = value;
+      }));
     }
 
     function renderResultMatrix(best) {
@@ -2409,18 +2456,17 @@
         el.innerHTML = "";
         return;
       }
-      const cells = lightToPvInputs(state.light || state.rawLight || []);
       const showId = $("showCellId")?.checked ?? true;
       const showGroup = $("showGroupName")?.checked ?? true;
       const showPower = $("showCellPower")?.checked ?? false;
+      const cells = showPower ? (state.light || state.rawLight || []).flat() : [];
       el.classList.add("result-rows");
       el.innerHTML = best.details.groups.map((group, g) => {
         const cols = Math.max(1, Math.min(group.length, 12));
         return `<div class="result-row" style="--cols:${cols}">` + group.map(idx => {
-        const cell = cells[idx] || { light: 0 };
         const idHtml = showId ? `<span class="cell-id">#${idx + 1}</span>` : "";
         const main = showGroup ? groupLabel(g) : "•";
-        const sub = showPower ? `${cell.light.toFixed(1)}W` : `Ilim ${(best.details.Ilim_group?.[g] || 0).toFixed(3)}`;
+        const sub = showPower ? `${(cells[idx] ?? 0).toFixed(1)}W` : `Ilim ${(best.details.Ilim_group?.[g] || 0).toFixed(3)}`;
         return `<div class="matrix-cell ${groupClass(g)}">
           ${idHtml}
           <span class="cell-main">${main}</span>
@@ -2430,22 +2476,15 @@
       }).join("");
     }
 
-    function cloneData(value) {
-      return value == null ? value : JSON.parse(JSON.stringify(value));
-    }
-
     function renderSnapshot(snapshot) {
       if (!snapshot) return;
-      state.rawLight = cloneData(snapshot.rawLight);
-      state.rawDisplay = cloneData(snapshot.rawDisplay);
-      state.light = cloneData(snapshot.light || snapshot.rawLight);
-      state.best = cloneData(snapshot.best);
-      drawHeatmap($("rawCanvas"), rawVisualMatrix());
-      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
-      drawHeatmap($("resultCanvas"), state.best?.matrix || null);
-      renderResultMatrix(state.best);
-      renderGroupTable(state.best);
+      const changed = state.rawLight !== snapshot.rawLight || state.best !== snapshot.best;
+      state.rawLight = snapshot.rawLight;
+      state.rawDisplay = snapshot.rawDisplay;
+      state.light = snapshot.light || snapshot.rawLight;
+      state.best = snapshot.best;
       updateTopMetrics(snapshot.raw, snapshot.result);
+      if (changed) renderVisibleArray();
       drawPowerChart();
     }
 
@@ -2457,10 +2496,11 @@
         captured: state.rawDisplay?.capturedPower ?? 0,
         raw,
         result,
-        rawLight: cloneData(state.rawLight),
-        rawDisplay: cloneData(state.rawDisplay),
-        light: cloneData(state.light),
-        best: cloneData(state.best)
+        // Generation and optimization replace these frame objects; rendering only reads them.
+        rawLight: state.rawLight,
+        rawDisplay: state.rawDisplay,
+        light: state.light,
+        best: state.best
       });
       state.cumulativePowerDelta += result - raw;
       if (state.history.length > 30) {
@@ -2520,7 +2560,9 @@
     }
 
     function dynamicStep() {
-      if (state.paused) return;
+      const input = document.activeElement;
+      const incompleteNumber = input?.type === "number" && (input.value === "" || !input.validity.valid);
+      if (state.paused || state.recomputeTimer || incompleteNumber) return;
       const totalCells = clampInt(controls.groups.value, 2, 80) * clampInt(controls.items.value, 2, 80);
       if (totalCells > 900) return;
       generate();
@@ -2558,23 +2600,19 @@
       state.rawLight = dynamicLight;
       state.light = dynamicLight;
       state.best = null;
-      drawHeatmap($("rawCanvas"), rawVisualMatrix());
-      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
     }
 
     function optimize() {
       if (!state.light) generate();
       const best = chooseBestOptimization(state.light);
       state.best = best;
-      drawHeatmap($("resultCanvas"), best.matrix);
-      renderResultMatrix(best);
       if ($("method")) $("method").value = best.name;
       if ($("resultPower")) $("resultPower").value = `${best.power.toFixed(1)} W`;
-      renderGroupTable(best);
       const rawP = best.rawPower;
       $("rawPower").value = `${rawP.toFixed(1)} W`;
       updateTopMetrics(rawP, best.power);
       appendHistory(rawP, rawP, best.power);
+      renderVisibleArray();
     }
 
     function resetHistory() {
@@ -2585,6 +2623,8 @@
     }
 
     function recomputeFromPresetChange() {
+      if (state.recomputeTimer) clearTimeout(state.recomputeTimer);
+      state.recomputeTimer = null;
       resetHistory();
       generate();
       optimize();
@@ -2602,13 +2642,33 @@
       return String(el?.dataset?.pageSection || "").split(/\s+/).filter(Boolean);
     }
 
+    const renderedArrays = new Map();
+
+    function renderVisibleArray() {
+      const page = state.currentPage;
+      const frame = page === "1" ? (state.rawDisplay || state.rawLight) : state.best;
+      if (!frame || renderedArrays.get(page) === frame) return;
+      if (state.currentPage === "1") {
+        const matrix = rawVisualMatrix();
+        drawHeatmap($("rawCanvas"), matrix);
+        renderLightMatrix("rawMatrix", matrix, rawDisplayOptions());
+      } else if (state.currentPage === "2") {
+        drawHeatmap($("resultCanvas"), state.best?.matrix || null);
+        renderResultMatrix(state.best);
+      } else if (state.currentPage === "3") {
+        renderGroupTable(state.best);
+      }
+      renderedArrays.set(page, frame);
+    }
+
     function refreshCurrentPageView() {
-      drawHeatmap($("rawCanvas"), rawVisualMatrix());
-      drawHeatmap($("resultCanvas"), state.best?.matrix || null);
-      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
-      renderResultMatrix(state.best);
-      renderGroupTable(state.best);
+      renderVisibleArray();
       drawPowerChart();
+    }
+
+    function refreshArrayLayout() {
+      renderedArrays.clear();
+      refreshCurrentPageView();
     }
 
     function setActivePage(page) {
@@ -2742,7 +2802,12 @@
         if (rangeId === "shadeSize") scaleShadeRatiosToSize();
         scheduleRecompute();
       });
-      input.addEventListener("input", () => {
+      const solarSetting = rangeId.startsWith("shade") || rangeId === "baseLimit";
+      input.addEventListener(solarSetting ? "input" : "change", () => {
+        if (!solarSetting && input.value === "") {
+          input.value = clampValue(range.value);
+          return;
+        }
         const next = clampValue(input.value);
         input.value = next;
         range.value = next;
@@ -2753,7 +2818,8 @@
           syncShadeSizeToRatioTotal();
         }
         if (rangeId === "shadeSize") scaleShadeRatiosToSize();
-        scheduleRecompute();
+        if (solarSetting) scheduleRecompute();
+        else recomputeFromPresetChange();
       });
     }
 
@@ -2897,7 +2963,7 @@
       const active = document.body.classList.toggle("presentation-mode");
       $("presentationToggle").textContent = active ? "展开参数" : "收起参数";
       $("presentationToggle").setAttribute("aria-pressed", String(active));
-      refreshCurrentPageView();
+      refreshArrayLayout();
     });
     $("fullscreenToggle").addEventListener("click", async () => {
       try {
@@ -2909,7 +2975,7 @@
     });
     document.addEventListener("fullscreenchange", () => {
       $("fullscreenToggle").textContent = document.fullscreenElement ? "退出全屏" : "全屏";
-      refreshCurrentPageView();
+      refreshArrayLayout();
     });
     $("powerChart")?.addEventListener("click", selectHistoryFromChart);
     $("powerChart")?.addEventListener("pointermove", event => {
@@ -2926,13 +2992,7 @@
     ["showRawCellId", "showRawGroupName", "showRawCellPower"].forEach(id => {
       $(id)?.addEventListener("change", () => renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions()));
     });
-    window.addEventListener("resize", () => {
-      drawHeatmap($("rawCanvas"), rawVisualMatrix());
-      drawHeatmap($("resultCanvas"), state.best?.matrix || null);
-      renderLightMatrix("rawMatrix", rawVisualMatrix(), rawDisplayOptions());
-      renderResultMatrix(state.best);
-      drawPowerChart();
-    });
+    window.addEventListener("resize", refreshArrayLayout);
 
     refreshEnabled();
     generate();
