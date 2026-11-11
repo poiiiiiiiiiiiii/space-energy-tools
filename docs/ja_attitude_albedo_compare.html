@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- Generated from ja_attitude_albedo_compare.md. -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JA 三种姿态反照光对比 | Space Energy Tools</title>
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <header>
+    <nav aria-label="站点导航">
+      <a class="site-name" href="../">Space Energy Tools</a>
+      <a href="./">说明目录</a>
+    </nav>
+  </header>
+  <main>
+<h1>JA 三种姿态反照光对比</h1>
+<p>站点维护与网页适配：<a href="https://github.com/poiiiiiiiiiiiii">@poiiiiiiiiiiiii</a> · <a href="https://poiiiiiiiiiiiii.github.io/space-energy-tools/ja_attitude_albedo_compare.html">打开 <code>ja_attitude_albedo_compare.html</code></a></p>
+<h2>功能</h2>
+<p>在同一 JA 轨道上比较三种星体姿态：对地稳定推定、A 片朝太阳、B 片朝最强地球反照方向。页面联动显示轨道、卫星模型、事件和受光曲线。A、B 是壳体相反端面上的独立小片，并非太阳翼的正背面。</p>
+<h2>算法依据</h2>
+<p>复用实测轨道位置和 Orekit 日地几何。假设地球是反照率 0.30 的朗伯球，对 48×96 可见圆盘网格做方向投影积分。B 片逐时最优方向来自预计算的球面分支定界结果，星体滚转由轨道法向约束。图中累计入射光能以辐照度乘接收面积和采样时长求和；三维姿态在采样间插值。</p>
+<h2>适用范围</h2>
+<p>三个方案是同一轨道上的模型比较，没有完整实测姿态验证。太阳翼理想跟日，未计机构转速限制、云图、部件互遮挡或电学转换。累计 Wh 为入射光能，不是电能。</p>
+  </main>
+</body>
+</html>

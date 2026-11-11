@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Generated from tandex.md. -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TandEx 网页计算器 | Space Energy Tools</title>
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <header>
+    <nav aria-label="站点导航">
+      <a class="site-name" href="../">Space Energy Tools</a>
+      <a href="./">说明目录</a>
+    </nav>
+  </header>
+  <main>
+<h1>TandEx 网页计算器</h1>
+<p>站点维护与浏览器适配：<a href="https://github.com/poiiiiiiiiiiiii">@poiiiiiiiiiiiii</a> · <a href="https://poiiiiiiiiiiiii.github.io/space-energy-tools/tandex.html">打开 <code>tandex.html</code></a></p>
+<h2>功能</h2>
+<p>计算钙钛矿/硅叠层太阳能电池的 2T 和 4T 效率、短路电流、开路电压、填充因子及 J–V 曲线。支持选择预置顶层光学、EQE 和透过率数据，也能导入数据。另提供透明导电电极串联电阻及硅体寿命估算。</p>
+<h2>算法依据</h2>
+<p>模型使用 AM1.5G 光谱、EQE 与光学数据计算光生电流。按所选光学输入，使用传输矩阵法（TMM）计算层间透射与吸收，或采用给定 EQE 和透过率。考虑透明导电电极的片电阻、光学损失、金属栅线遮光及间距的权衡。用多二极管等效电路扫描工作电压并找最大功率点。</p>
+<p>2T 以共同串联电流求整器件的 J–V 曲线；4T 分别求顶层和经过顶层滤光的硅底层最大功率并相加，单独受光的硅曲线仅用于对照。浏览器版把原 Flask/PySpice 计算路径改为 Pyodide Web Worker 内运行的 Python 数值求解，不需要运行后端。计算是模型预测，不能当作实测器件认证值。</p>
+<h2>上游署名</h2>
+<ul>
+<li>原始项目：<a href="https://github.com/Oxford-eMat-Lab/TandEx">Oxford-eMat-Lab/TandEx</a>，牛津大学材料系研究团队。原模型文件 <code>tandex_func_02.py</code> 的<a href="https://github.com/Oxford-eMat-Lab/TandEx/commit/0241d50d6f03d779d0994943cd543c6acaffccff">提交记录</a>对应 Ruy Sebastian Bonilla（<a href="https://github.com/seb-bonilla">@seb-bonilla</a>）。本站使用了该模型及其数据的改编版，不是上游 notebook 的原样发布。</li>
+<li>算法参考：Ruy Sebastian Bonilla, <em>The impact of transparent conducting electrodes on tandem solar cell efficiency</em>, Joule 9, 102211 (2025), <a href="https://doi.org/10.1016/j.joule.2025.102211">DOI: 10.1016/j.joule.2025.102211</a>。</li>
+<li>模型许可：上游 GitHub 仓库标注 GPL-3.0，站点保留<a href="https://poiiiiiiiiiiiii.github.io/space-energy-tools/tandex-assets/LICENSE">模型许可证</a>。本站署名仅指网页适配与维护，不替代原始模型署名。</li>
+</ul>
+  </main>
+</body>
+</html>

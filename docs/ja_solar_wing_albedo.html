@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- Generated from ja_solar_wing_albedo.md. -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JA 太阳翼整面在轨反照光 | Space Energy Tools</title>
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <header>
+    <nav aria-label="站点导航">
+      <a class="site-name" href="../">Space Energy Tools</a>
+      <a href="./">说明目录</a>
+    </nav>
+  </header>
+  <main>
+<h1>JA 太阳翼整面在轨反照光</h1>
+<p>站点维护与网页适配：<a href="https://github.com/poiiiiiiiiiiiii">@poiiiiiiiiiiiii</a> · <a href="https://poiiiiiiiiiiiii.github.io/space-energy-tools/ja_solar_wing_albedo.html">打开 <code>ja_solar_wing_albedo.html</code></a></p>
+<h2>功能</h2>
+<p>回放 JA 首个完整轨道，联动显示轨道、卫星太阳翼特写和正背面受光曲线。A、B 分别指同一太阳翼的正面和背面，结果按整面单位面积表示，可查看峰值、平均辐照和累计入射光能。</p>
+<h2>算法依据</h2>
+<p>轨道位置取自已有 JA 数据；假设星体对地三轴稳定，太阳翼绕星体 Y 轴单轴跟日。数据预计算采用 Orekit 的日地几何、均匀地球反照率 0.30 和球面朗伯反射。将 48×96 可见地球圆盘采样单元按入射与接收方向投影积分，得到太阳翼正背面的反照辐照度。按采样区间时长加权平均并累计为 Wh/m²；网页内嵌结果，三维画面在采样间插值。</p>
+<h2>适用范围</h2>
+<p>轨道位置与姿态、太阳翼转角的来源不同：后两者为推定，不是完整实测。反照率 0.30 不等于翼面收到 0.30 AM0。累计光能不是太阳翼输出电能。</p>
+  </main>
+</body>
+</html>

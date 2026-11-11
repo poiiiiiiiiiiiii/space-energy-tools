@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- Generated from README.md. -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Space Energy Tools 网页说明 | Space Energy Tools</title>
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <header>
+    <nav aria-label="站点导航">
+      <a class="site-name" href="../">Space Energy Tools</a>
+      <a href="./" aria-current="page">说明目录</a>
+    </nav>
+  </header>
+  <main>
+<h1>Space Energy Tools 网页说明</h1>
+<p>站点维护与网页适配：<a href="https://github.com/poiiiiiiiiiiiii">@poiiiiiiiiiiiii</a><br><a href="https://poiiiiiiiiiiiii.github.io/space-energy-tools/">公开首页</a> · <a href="https://github.com/poiiiiiiiiiiiii/space-energy-tools">GitHub 仓库</a></p>
+<p>本目录覆盖发布包里的 12 个 HTML。每页单独说明功能、算法依据和适用范围。开发测试文件及同名副本不重复列入。</p>
+<table>
+<thead>
+<tr>
+<th>网页</th>
+<th>功能与算法速览</th>
+<th>独立说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>index.html</code></td>
+<td>站点导航、分段效率乘积和光斑覆盖估算</td>
+<td><a href="index-page.html">激光能量传输系统</a></td>
+</tr>
+<tr>
+<td><code>bec.html</code></td>
+<td>单结与叠层光伏效率，基于光谱、EQE 与详细平衡近似</td>
+<td><a href="bec.html">太阳能电池性能计算器</a></td>
+</tr>
+<tr>
+<td><code>tandex.html</code></td>
+<td>钙钛矿/硅 2T、4T 光电耦合模型与 J–V 曲线</td>
+<td><a href="tandex.html">TandEx 网页计算器</a></td>
+</tr>
+<tr>
+<td><code>tmp.html</code></td>
+<td>晶硅与钙钛矿电池的轨道热平衡估算</td>
+<td><a href="tmp.html">轨道温度模拟</a></td>
+</tr>
+<tr>
+<td><code>perovskite.html</code></td>
+<td>脉冲氙灯回收的成本、LCOE 与简化 LCA</td>
+<td><a href="perovskite.html">钙钛矿模组回收</a></td>
+</tr>
+<tr>
+<td><code>medical.html</code></td>
+<td>组织光衰减、接收功率与简化温升演示</td>
+<td><a href="medical.html">医疗植入模拟</a></td>
+</tr>
+<tr>
+<td><code>space-energy-lab.html</code></td>
+<td>LEO 能量与粒子数据的插值、分区间统计和导出</td>
+<td><a href="space-energy-lab.html">空间能量实验室</a></td>
+</tr>
+<tr>
+<td><code>tctdemo_am0.html</code></td>
+<td>固定损坏样本、旁路与阵列重组的功率比较</td>
+<td><a href="tctdemo_am0.html">TCT AM0 版</a></td>
+</tr>
+<tr>
+<td><code>tctdemo_laser.html</code></td>
+<td>到靶光斑、湍流、阵列截获与 TCT 重组</td>
+<td><a href="tctdemo_laser.html">TCT 激光版</a></td>
+</tr>
+<tr>
+<td><code>tctdemo_html.html</code></td>
+<td>激光和太阳光切换的早期五组 TCT 演示</td>
+<td><a href="tctdemo_html.html">TCT 合并旧版</a></td>
+</tr>
+<tr>
+<td><code>ja_solar_wing_albedo.html</code></td>
+<td>JA 太阳翼整面正背面入射反照光回放</td>
+<td><a href="ja_solar_wing_albedo.html">JA 太阳翼整面反照光</a></td>
+</tr>
+<tr>
+<td><code>ja_attitude_albedo_compare.html</code></td>
+<td>同一轨道下三种姿态的反照光对比</td>
+<td><a href="ja_attitude_albedo_compare.html">JA 三种姿态对比</a></td>
+</tr>
+</tbody></table>
+<h2>运行与来源</h2>
+<p>站点由 GitHub Pages 提供静态文件。轨道温度、回收和医疗页共用仓库内的 Chart.js；空间能量实验室使用同站的字体和内置 LEO 数据。TandEx 无需后端，但初次运行需联网加载 Pyodide。JA 页展示已预计算并内嵌的轨道数据，不会在网页上重新求解完整轨道。</p>
+<p>TandEx 原始模型归功于牛津大学 <a href="https://github.com/Oxford-eMat-Lab/TandEx">Oxford-eMat-Lab/TandEx</a> 与 <a href="https://github.com/seb-bonilla">Ruy Sebastian Bonilla（@seb-bonilla）</a>。论文、许可证与浏览器适配说明见 <a href="tandex.html">TandEx 专页</a>。</p>
+  </main>
+</body>
+</html>

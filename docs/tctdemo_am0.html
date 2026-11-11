@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- Generated from tctdemo_am0.md. -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TCT AM0 阵列优化 | Space Energy Tools</title>
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <header>
+    <nav aria-label="站点导航">
+      <a class="site-name" href="../">Space Energy Tools</a>
+      <a href="./">说明目录</a>
+    </nav>
+  </header>
+  <main>
+<h1>TCT AM0 阵列优化</h1>
+<p>站点维护与网页适配：<a href="https://github.com/poiiiiiiiiiiiii">@poiiiiiiiiiiiii</a> · <a href="https://poiiiiiiiiiiiii.github.io/space-energy-tools/tctdemo_am0.html">打开 <code>tctdemo_am0.html</code></a></p>
+<h2>功能</h2>
+<p>在稳态 AM0 条件下比较固定串并联阵列和 TCT2026 重组后的输出。设置损坏占比、位置与状态随机选项、旁路电流阈值及优化分组数；可查看电池片光功率、损坏与旁路状态、分组指标和时序功率。损坏样本生成后保持固定，修改工况或主动重新随机才生成新样本。</p>
+<h2>算法依据</h2>
+<p>以各电池片的损坏系数分配设定的阵列入射功率，并用合成的单片 I–V 模型估算短路电流和开路电压。按固定电流阈值（A）判断旁路：短路电流低于阈值的电池片不参加该串联组的限流及电压求和。每串按最弱有效单元的最大功率点电流设限，在电流网格上搜索 <code>I × ΣV(I)</code> 的峰值，再把各组峰值相加。TCT2026 按电流排序初始化，移动组间单元以寻找更高的总功率。</p>
+<h2>适用范围</h2>
+<p>用于对比稳态损坏、旁路及重组效果。旁路为阈值近似，不包含真实二极管压降和热效应。累计功率差是逐帧有符号差值之和，不是按时间积分的能量。</p>
+  </main>
+</body>
+</html>

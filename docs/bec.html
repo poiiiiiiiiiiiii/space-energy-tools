@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- Generated from bec.md. -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>太阳能电池性能计算器 | Space Energy Tools</title>
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <header>
+    <nav aria-label="站点导航">
+      <a class="site-name" href="../">Space Energy Tools</a>
+      <a href="./">说明目录</a>
+    </nav>
+  </header>
+  <main>
+<h1>太阳能电池性能计算器</h1>
+<p>站点维护与网页适配：<a href="https://github.com/poiiiiiiiiiiiii">@poiiiiiiiiiiiii</a> · <a href="https://poiiiiiiiiiiiii.github.io/space-energy-tools/bec.html">打开 <code>bec.html</code></a></p>
+<h2>功能</h2>
+<p>选择标准光谱、指定激光波长或导入光谱，选择或上传电池的外量子效率（EQE）及透过率数据。页面显示单结或顶底层模型的光谱、短路电流密度、开路电压、填充因子和光电效率。由首页打开时可将效率回填。</p>
+<h2>算法依据</h2>
+<p>将光谱插值对齐到 EQE 和光学透过率数据，并对波长做梯形积分。先由光谱功率和单光子能量 <code>hc/λ</code> 求光子通量，再乘以 EQE 并积分求光生电流。顶层透过后的光谱用于底层估算。页面使用详细平衡相关的光子积分与电压、填充因子近似，按最大功率与入射功率之比求效率。</p>
+<h2>适用范围</h2>
+<p>适合在一致的光谱和器件假设下比较趋势。结果不是实测电池效率；也不等同于 <a href="tandex.html">TandEx</a> 的多二极管 2T/4T 电路求解。</p>
+  </main>
+</body>
+</html>
