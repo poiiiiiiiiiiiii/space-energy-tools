@@ -1,7 +1,6 @@
 #libraries
 
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.optimize import fsolve, least_squares
 from scipy.interpolate import interp1d
@@ -134,6 +133,7 @@ def calculate_efficiency(voltages, currents, plotting=False):
 
 
     if plotting == True:
+        import matplotlib.pyplot as plt
         fig, ax1 = plt.subplots(figsize=(6, 4))
         color = 'tab:blue'
         ax1.set_xlabel('Voltage (V)')
@@ -317,6 +317,7 @@ def find_optimal_pitch(J0_Si, J0d, J0Aug_Si, Rsh_Si, Jsc_Si, l_values, R_tco, AA
 
 
 def plot_pvk_iv_curve(voltages, currents, eff, Jsc, Voc, FF, ERE):
+    import matplotlib.pyplot as plt
     
     
     fig, ax1 = plt.subplots(figsize=(5, 4))
@@ -364,6 +365,7 @@ def plot_pvk_iv_curve(voltages, currents, eff, Jsc, Voc, FF, ERE):
     plt.show()
 
 def plot_si_jv(iV, iJ, voltages, currents, Voc, Jsc, FF, eff):
+    import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(5, 4))
     plt.rc('font', family='Arial', size=16)
     ax.plot(iV, iJ, 'o', label='iVoc vs iJ')
@@ -747,6 +749,7 @@ def tauc_analysis(df_pvk, lambda_shift, lambda_vec, Erange,plot=True):
     Eg = -intercept / slope
 
     if plot:
+        import matplotlib.pyplot as plt
         # === Plot ===
         plt.figure(figsize=(4,3))
         plt.plot(x_fit, y_fit, 'o', label="Tauc data", color="blue")

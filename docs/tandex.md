@@ -12,6 +12,10 @@
 
 2T 以共同串联电流求整器件的 J–V 曲线；4T 分别求顶层和经过顶层滤光的硅底层最大功率并相加，单独受光的硅曲线仅用于对照。浏览器版把原 Flask/PySpice 计算路径改为 Pyodide Web Worker 内运行的 Python 数值求解，不需要运行后端。计算是模型预测，不能当作实测器件认证值。
 
+## 加载方式
+
+Pyodide 运行时、计算依赖、模型数据和 Plotly 都由本站提供。首次打开需要下载约 41 MiB 的运行时与计算包，浏览器可缓存；计算及 CSV 导入在浏览器中完成，不需要 CDN 或计算服务器。初始化失败时，页面会在计算状态处显示错误。
+
 ## 上游署名
 
 - 原始项目：[Oxford-eMat-Lab/TandEx](https://github.com/Oxford-eMat-Lab/TandEx)，牛津大学材料系研究团队。原模型文件 `tandex_func_02.py` 的[提交记录](https://github.com/Oxford-eMat-Lab/TandEx/commit/0241d50d6f03d779d0994943cd543c6acaffccff)对应 Ruy Sebastian Bonilla（[@seb-bonilla](https://github.com/seb-bonilla)）。本站使用了该模型及其数据的改编版，不是上游 notebook 的原样发布。
